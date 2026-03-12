@@ -1,0 +1,3117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Forecast Demand — Demand Forecasting System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #1e2127;
+  --bg2: #252930;
+  --bg3: #2d3139;
+  --panel: #22262d;
+  --border: #363b45;
+  --border2: #424857;
+  --accent: #2e86de;
+  --accent2: #54a0ff;
+  --green: #26de81;
+  --green2: #20bf6b;
+  --red: #fc5c65;
+  --orange: #fd9644;
+  --yellow: #fed330;
+  --purple: #a55eea;
+  --teal: #2bcbba;
+  --tx: #dce1ec;
+  --tx2: #9aa0b0;
+  --tx3: #6b7280;
+  --sel: rgba(46,134,222,0.18);
+  --toolbar: #1a1d23;
+  --header-h: 38px;
+  --toolbar-h: 34px;
+  --status-h: 26px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: 'Roboto', sans-serif;
+  background: var(--bg);
+  color: var(--tx);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+}
+.titlebar {
+  height: var(--header-h);
+  background: linear-gradient(180deg, #2a2f3a, #1e2127);
+  border-bottom: 1px solid #111;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 12px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.app-logo {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 700; color: var(--tx);
+  letter-spacing: 0.3px;
+}
+.logo-box {
+  width: 22px; height: 22px; border-radius: 4px;
+  background: linear-gradient(135deg, var(--accent), var(--teal));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff;
+}
+.app-logo span { color: var(--accent2); }
+.title-sep { width: 1px; height: 18px; background: var(--border); }
+.title-info { font-size: 11px; color: var(--tx3); font-family: 'Roboto Mono', monospace; }
+.title-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.title-btn {
+  padding: 4px 12px; border-radius: 3px; font-size: 11px; font-weight: 500;
+  cursor: pointer; border: 1px solid var(--border2); background: var(--bg3);
+  color: var(--tx2); transition: all 0.15s;
+}
+.title-btn:hover { background: var(--border); color: var(--tx); }
+.title-btn.primary {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+  font-weight: 700;
+}
+.title-btn.primary:hover { background: var(--accent2); }
+.title-btn.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.title-btn.success {
+  background: var(--green2); border-color: var(--green2); color: #fff; font-weight: 700;
+}
+.title-btn.success:hover { background: var(--green); }
+.title-btn.success:disabled { opacity: 0.4; cursor: not-allowed; }
+.toolbar {
+  height: var(--toolbar-h);
+  background: var(--toolbar);
+  border-bottom: 1px solid #111;
+  display: flex; align-items: center; padding: 0 8px; gap: 2px;
+  flex-shrink: 0;
+}
+.tb-group { display: flex; align-items: center; gap: 2px; padding: 0 6px; border-right: 1px solid var(--border); }
+.tb-group:first-child { padding-left: 0; }
+.tb-group:last-child { border-right: none; }
+.tb-label { font-size: 10px; color: var(--tx3); margin-right: 4px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+.tb-btn {
+  height: 24px; padding: 0 8px; border-radius: 3px; font-size: 11px;
+  cursor: pointer; border: 1px solid transparent; background: transparent;
+  color: var(--tx2); transition: all 0.1s; white-space: nowrap; font-family: 'Roboto', sans-serif;
+}
+.tb-btn:hover { background: var(--bg3); border-color: var(--border); color: var(--tx); }
+.tb-btn.active { background: var(--sel); border-color: var(--accent); color: var(--accent2); }
+.tb-select {
+  height: 24px; padding: 0 6px; border-radius: 3px; font-size: 11px;
+  background: var(--bg3); border: 1px solid var(--border); color: var(--tx);
+  outline: none; font-family: 'Roboto', monospace; cursor: pointer; min-width: 100px;
+}
+.tb-select:focus { border-color: var(--accent); }
+.tb-select option { background: var(--bg3); }
+.tb-num {
+  height: 24px; padding: 0 6px; border-radius: 3px; font-size: 11px;
+  background: var(--bg3); border: 1px solid var(--border); color: var(--tx);
+  outline: none; font-family: 'Roboto Mono', monospace; width: 52px; text-align: center;
+}
+.tb-num:focus { border-color: var(--accent); }
+.layout { flex: 1; display: flex; overflow: hidden; }
+.sidenav {
+  width: 230px; flex-shrink: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sidenav-header {
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+  flex-shrink: 0;
+}
+.sidenav-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--tx3); margin-bottom: 5px; }
+.sku-search {
+  width: 100%; height: 24px; border-radius: 3px;
+  background: var(--bg2); border: 1px solid var(--border);
+  color: var(--tx); font-size: 11px; padding: 0 8px; outline: none;
+  font-family: 'Roboto', sans-serif;
+}
+.sku-search:focus { border-color: var(--accent); }
+.sku-list { flex: 1; overflow-y: auto; }
+.sku-list::-webkit-scrollbar { width: 6px; }
+.sku-list::-webkit-scrollbar-track { background: var(--panel); }
+.sku-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+.sku-item {
+  padding: 6px 10px; cursor: pointer; border-bottom: 1px solid rgba(54,59,69,0.5);
+  transition: background 0.1s; display: flex; flex-direction: column; gap: 1px;
+}
+.sku-item:hover { background: var(--bg3); }
+.sku-item.active { background: var(--sel); border-left: 2px solid var(--accent); }
+.sku-code { font-size: 11px; font-weight: 700; color: var(--accent2); font-family: 'Roboto Mono', monospace; }
+.sku-desc { font-size: 10px; color: var(--tx2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sku-badge {
+  display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 2px;
+  font-family: 'Roboto Mono', monospace; font-weight: 600; margin-top: 1px;
+}
+.badge-up { background: rgba(38,222,129,0.15); color: var(--green); }
+.badge-dn { background: rgba(252,92,101,0.15); color: var(--red); }
+.badge-fl { background: rgba(107,114,128,0.15); color: var(--tx3); }
+.sidenav-footer {
+  padding: 6px 10px; border-top: 1px solid var(--border);
+  font-size: 10px; color: var(--tx3); font-family: 'Roboto Mono', monospace;
+  background: var(--bg3); flex-shrink: 0;
+}
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.tabbar {
+  height: 32px; background: var(--toolbar);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-end; padding: 0 8px; gap: 1px;
+  flex-shrink: 0;
+}
+.tab {
+  height: 28px; padding: 0 14px; border-radius: 4px 4px 0 0;
+  font-size: 11px; font-weight: 500; cursor: pointer;
+  border: 1px solid transparent; border-bottom: none;
+  background: transparent; color: var(--tx3); transition: all 0.15s;
+  display: flex; align-items: center; gap: 5px;
+}
+.tab:hover { color: var(--tx2); background: rgba(255,255,255,0.04); }
+.tab.on {
+  background: var(--bg2); border-color: var(--border);
+  color: var(--tx); border-bottom-color: var(--bg2);
+}
+.tab .tab-icon { font-size: 12px; }
+.panels { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.panel { display: none; flex: 1; overflow: hidden; }
+.panel.on { display: flex; flex-direction: column; }
+.kpi-strip {
+  display: flex; gap: 1px; background: var(--border);
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.kpi {
+  flex: 1; background: var(--panel);
+  padding: 8px 12px; display: flex; flex-direction: column; gap: 2px;
+}
+.kpi-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--tx3); }
+.kpi-value { font-size: 18px; font-weight: 700; font-family: 'Roboto Mono', monospace; letter-spacing: -0.5px; line-height: 1.1; }
+.kpi-sub { font-size: 9px; color: var(--tx3); font-family: 'Roboto Mono', monospace; }
+.kpi-green { color: var(--green); }
+.kpi-red { color: var(--red); }
+.kpi-blue { color: var(--accent2); }
+.kpi-orange { color: var(--orange); }
+.kpi-teal { color: var(--teal); }
+.tbl-wrap { flex: 1; overflow: auto; }
+.tbl-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+.tbl-wrap::-webkit-scrollbar-track { background: var(--panel); }
+.tbl-wrap::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+thead { position: sticky; top: 0; z-index: 10; }
+th {
+  background: var(--bg3); padding: 5px 10px; text-align: left;
+  font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--tx3); border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border); white-space: nowrap;
+  cursor: pointer; user-select: none; position: relative;
+}
+th:hover { color: var(--tx2); background: var(--bg2); }
+th.sorted { color: var(--accent2); background: rgba(46,134,222,0.08); }
+th .si { margin-left: 3px; opacity: 0.5; font-size: 9px; }
+td {
+  padding: 4px 10px; border-bottom: 1px solid rgba(54,59,69,0.6);
+  border-right: 1px solid rgba(54,59,69,0.4);
+  font-family: 'Roboto Mono', monospace; font-size: 11px;
+  white-space: nowrap; cursor: pointer;
+}
+td:last-child { border-right: none; }
+th:last-child { border-right: none; }
+tr:hover td { background: rgba(255,255,255,0.025); }
+tr.selected td { background: var(--sel) !important; }
+.td-name { font-family: 'Roboto', sans-serif !important; color: var(--tx2); }
+.td-code { color: var(--accent2); font-weight: 600; }
+.td-good { color: var(--green); }
+.td-med { color: var(--orange); }
+.td-bad { color: var(--red); }
+.td-num { text-align: right; }
+.td-bold { font-weight: 600; color: var(--tx); }
+.detail-layout { flex: 1; display: flex; overflow: hidden; }
+.detail-left { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border); }
+.detail-right { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden; }
+.pane-header {
+  height: 26px; background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 10px; gap: 8px;
+  flex-shrink: 0;
+}
+.pane-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--tx2); }
+.pane-badge {
+  font-size: 9px; padding: 1px 6px; border-radius: 2px;
+  background: rgba(46,134,222,0.2); color: var(--accent2);
+  font-family: 'Roboto Mono', monospace; font-weight: 600;
+}
+.pane-actions { margin-left: auto; display: flex; gap: 4px; }
+.pane-btn {
+  height: 18px; padding: 0 8px; border-radius: 2px; font-size: 10px;
+  cursor: pointer; border: 1px solid var(--border); background: var(--bg2);
+  color: var(--tx3); transition: all 0.1s;
+}
+.pane-btn:hover { color: var(--tx); border-color: var(--border2); }
+.pane-btn.active { color: var(--accent2); border-color: var(--accent); background: rgba(46,134,222,0.08); }
+.chart-area { flex: 1; position: relative; overflow: hidden; padding: 8px; }
+canvas { display: block; }
+.chart-tip {
+  position: absolute;
+  min-width: 150px;
+  max-width: 260px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(18,21,27,0.96);
+  border: 1px solid var(--border2);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+  font-size: 10px;
+  color: var(--tx);
+  pointer-events: none;
+  z-index: 20;
+  font-family: 'Roboto Mono', monospace;
+  line-height: 1.5;
+}
+.chart-tip .tt-h { color: var(--accent2); font-weight: 700; margin-bottom: 4px; }
+.chart-tip .tt-row { display: flex; justify-content: space-between; gap: 10px; }
+.chart-tip .tt-lbl { color: var(--tx2); }
+.chart-tip .tt-val { font-weight: 700; }
+.chart-legend {
+  padding: 4px 12px; border-top: 1px solid var(--border);
+  display: flex; gap: 16px; flex-shrink: 0; background: var(--bg3);
+  font-size: 10px; color: var(--tx2); font-family: 'Roboto Mono', monospace;
+  flex-wrap: wrap; align-items: center;
+}
+.leg-item { display: flex; align-items: center; gap: 5px; }
+.leg-line { width: 24px; height: 2px; flex-shrink: 0; }
+.leg-dash { border-top: 2px dashed; width: 24px; }
+.detail-section { border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.detail-section-hdr {
+  height: 24px; background: var(--bg3); border-bottom: 1px solid var(--border);
+  padding: 0 10px; display: flex; align-items: center;
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--tx3);
+}
+.detail-kv { padding: 6px 10px; display: flex; flex-direction: column; gap: 3px; }
+.kv-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.kv-key { font-size: 10px; color: var(--tx3); }
+.kv-val { font-size: 11px; font-family: 'Roboto Mono', monospace; font-weight: 600; text-align: right; }
+.model-scores { flex: 1; overflow-y: auto; }
+.model-scores::-webkit-scrollbar { width: 5px; }
+.model-scores::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.ms-row {
+  display: flex; align-items: center; padding: 4px 10px;
+  border-bottom: 1px solid rgba(54,59,69,0.5);
+  font-size: 10px; gap: 6px; cursor: default;
+}
+.ms-row:hover { background: var(--bg3); }
+.ms-row.winner { background: rgba(46,134,222,0.1); border-left: 2px solid var(--accent); }
+.ms-name { flex: 1; color: var(--tx2); font-family: 'Roboto', sans-serif; }
+.ms-badge {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.ms-mape { width: 62px; text-align: right; font-family: 'Roboto Mono', monospace; font-weight: 600; font-size: 10px; }
+.ms-bar-wrap { width: 70px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.ms-bar { height: 100%; border-radius: 2px; }
+.upload-overlay {
+  position: fixed; inset: 0; background: rgba(10,12,18,0.92);
+  z-index: 999; display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.upload-box {
+  background: var(--panel); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 40px; text-align: center; width: 560px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+.upload-box.drag { border-color: var(--accent); background: rgba(46,134,222,0.05); }
+.upload-icon { font-size: 52px; margin-bottom: 16px; }
+.upload-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.upload-sub { font-size: 12px; color: var(--tx2); line-height: 1.7; margin-bottom: 20px; }
+.upload-zone-inner {
+  border: 2px dashed var(--border2); border-radius: 6px;
+  padding: 24px; cursor: pointer; position: relative; transition: all 0.2s;
+}
+.upload-zone-inner:hover { border-color: var(--accent2); background: rgba(46,134,222,0.04); }
+.upload-zone-inner input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.upload-zone-inner .uz-txt { font-size: 12px; color: var(--tx2); }
+.upload-zone-inner .uz-txt span { color: var(--accent2); font-weight: 600; }
+.upload-cols {
+  margin-top: 16px; padding: 10px 14px; background: var(--bg3);
+  border: 1px solid var(--border); border-radius: 4px; text-align: left;
+}
+.upload-cols-title { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--tx3); margin-bottom: 6px; }
+.col-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.col-chip {
+  font-size: 10px; padding: 2px 8px; border-radius: 2px;
+  background: rgba(43,203,186,0.12); border: 1px solid rgba(43,203,186,0.3);
+  color: var(--teal); font-family: 'Roboto Mono', monospace;
+}
+.statusbar {
+  height: var(--status-h); background: var(--toolbar);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 10px; gap: 14px;
+  flex-shrink: 0; font-size: 10px; color: var(--tx3); font-family: 'Roboto Mono', monospace;
+}
+.status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.sd-idle { background: var(--tx3); }
+.sd-ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.sd-run { background: var(--orange); animation: blink 0.8s infinite; }
+.sd-err { background: var(--red); }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0.2} }
+.status-msg { flex: 1; }
+.status-right { display: flex; gap: 14px; }
+.prog-bar-wrap { width: 140px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.prog-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--teal)); border-radius: 2px; transition: width 0.3s ease; }
+.settings-wrap { flex: 1; overflow-y: auto; padding: 20px; }
+.settings-wrap::-webkit-scrollbar { width: 6px; }
+.settings-wrap::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+.settings-grid { display: grid; grid-template-columns: 340px 340px; gap: 20px; }
+.settings-card { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.settings-card-hdr {
+  padding: 8px 14px; background: var(--bg3); border-bottom: 1px solid var(--border);
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--tx2);
+  display: flex; align-items: center; gap: 8px;
+}
+.settings-body { padding: 14px; }
+.model-checklist { display: flex; flex-direction: column; gap: 4px; }
+.mc-item {
+  display: flex; align-items: center; gap: 8px; padding: 5px 8px;
+  border-radius: 3px; cursor: pointer; transition: background 0.1s;
+}
+.mc-item:hover { background: var(--bg3); }
+.mc-cb {
+  width: 13px; height: 13px; border: 1px solid var(--border2);
+  border-radius: 2px; background: var(--bg2); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; transition: all 0.15s;
+}
+.mc-item.checked .mc-cb { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mc-name { font-size: 11px; color: var(--tx2); flex: 1; }
+.mc-type { font-size: 9px; color: var(--tx3); font-family: 'Roboto Mono', monospace; }
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 8px; }
+.empty-icon { font-size: 36px; opacity: 0.3; }
+.empty-txt { font-size: 11px; color: var(--tx3); }
+.hidden { display: none !important; }
+.c-green { color: var(--green); }
+.c-red { color: var(--red); }
+.c-orange { color: var(--orange); }
+.c-blue { color: var(--accent2); }
+.c-teal { color: var(--teal); }
+.c-muted { color: var(--tx3); }
+</style>
+</head>
+<body>
+
+<div class="upload-overlay" id="uploadOverlay">
+  <div class="upload-box" id="uploadBox">
+    <div class="upload-icon">📊</div>
+    <div class="upload-title">Forecast Demand</div>
+    <div class="upload-sub">
+      Import your historical demand data to begin forecasting.<br>
+      New input format supported: <b>Description</b>, <b>ItemCode</b>, <b>PostingDate</b>, <b>Sum of Quantity</b>.<br>
+      PostingDate will be auto-converted to <b>Year / Month / Week(1-4)</b>.<br>
+      Legacy format with Year / Month / Week still works.
+    </div>
+    <div class="upload-cols">
+      <div class="upload-cols-title">Accepted Columns</div>
+      <div class="col-chips">
+        <span class="col-chip">Description</span>
+        <span class="col-chip">ItemCode</span>
+        <span class="col-chip">PostingDate</span>
+        <span class="col-chip">Sum of Quantity</span>
+        <span class="col-chip">or Year</span>
+        <span class="col-chip">Month</span>
+        <span class="col-chip">Week</span>
+      </div>
+    </div>
+    <div class="upload-zone-inner" id="dropZone" style="margin-top:16px">
+      <input type="file" id="fileIn" accept=".xlsx,.xls,.csv"/>
+      <div class="uz-txt">Drop file here or <span>browse</span> — .xlsx · .xls · .csv</div>
+    </div>
+  </div>
+</div>
+
+<div class="titlebar">
+  <div class="app-logo">
+    <div class="logo-box">FP</div>
+    Forecast<span>Demand</span>
+  </div>
+  <div class="title-sep"></div>
+  <div class="title-info" id="fileInfo">No file loaded</div>
+  <div class="title-right">
+    <button class="title-btn" onclick="document.getElementById('uploadOverlay').style.display='flex'">Open File</button>
+    <button class="title-btn primary" id="runBtn" disabled onclick="runForecast()">▶ Run Forecast</button>
+    <button class="title-btn success" id="expBtn" disabled onclick="exportXL()">↓ Export Excel</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="tb-group">
+    <span class="tb-label">Horizon</span>
+    <button class="tb-btn active" id="tbWk" onclick="setHUnit('week')">Weeks</button>
+    <button class="tb-btn" id="tbMo" onclick="setHUnit('month')">Months</button>
+    <input class="tb-num" id="hzN" type="number" value="8" min="1" max="52" title="Horizon length"/>
+  </div>
+  <div class="tb-group">
+    <span class="tb-label">History</span>
+    <input class="tb-num" id="lbN" type="number" value="12" min="3" max="36" title="Look-back months" style="width:44px"/>
+    <span style="font-size:10px;color:var(--tx3)">months back</span>
+  </div>
+  <div class="tb-group">
+    <span class="tb-label">Validation</span>
+    <input class="tb-num" id="valN" type="number" value="4" min="2" max="16" title="Validation periods (hold-out)" style="width:44px"/>
+    <span style="font-size:10px;color:var(--tx3)" id="valUnitLbl">periods</span>
+  </div>
+  <div class="tb-group">
+    <span class="tb-label">Season Period</span>
+    <input class="tb-num" id="seasN" type="number" value="4" min="2" max="12" title="Seasonal period (4=week-in-month, 12=month)" style="width:44px"/>
+  </div>
+  <div class="tb-group">
+    <span class="tb-label">View</span>
+    <select class="tb-select" id="chartSkuSel" onchange="onChartSkuChange()">
+      <option value="">— Select SKU —</option>
+    </select>
+  </div>
+  <div class="tb-group" style="border:none">
+    <span class="tb-label">Date Range:</span>
+    <span style="font-size:10px;color:var(--tx2);font-family:'Roboto Mono',monospace" id="drLabel">—</span>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidenav">
+    <div class="sidenav-header">
+      <div class="sidenav-title">SKU Navigator</div>
+      <input class="sku-search" id="skuSearch" type="text" placeholder="Search…" oninput="filterSKUList()"/>
+    </div>
+    <div class="sku-list" id="skuList">
+      <div class="empty" style="padding:30px 0">
+        <div class="empty-icon">📦</div>
+        <div class="empty-txt">Load data to see SKUs</div>
+      </div>
+    </div>
+    <div class="sidenav-footer" id="skuCount">0 items</div>
+  </div>
+
+  <div class="main">
+    <div class="tabbar">
+      <button class="tab on" onclick="swTab('overview')"><span class="tab-icon">📋</span>Forecast Table</button>
+      <button class="tab" onclick="swTab('chart')"><span class="tab-icon">📈</span>Chart View</button>
+      <button class="tab" onclick="swTab('validation')"><span class="tab-icon">🏆</span>Model Competition</button>
+      <button class="tab" onclick="swTab('settings')"><span class="tab-icon">⚙️</span>Model Settings</button>
+    </div>
+
+    <div class="panels">
+      <div class="panel on" id="p-overview">
+        <div class="kpi-strip" id="kpiStrip">
+          <div class="kpi"><div class="kpi-label">Total SKUs</div><div class="kpi-value kpi-blue" id="kSku">—</div><div class="kpi-sub">processed</div></div>
+          <div class="kpi"><div class="kpi-label">Avg MAPE</div><div class="kpi-value kpi-orange" id="kMape">—</div><div class="kpi-sub">rolling validation</div></div>
+          <div class="kpi"><div class="kpi-label">Avg NMAE</div><div class="kpi-value kpi-teal" id="kNmae">—</div><div class="kpi-sub">rolling forward error</div></div>
+          <div class="kpi"><div class="kpi-label">Avg Rank Score</div><div class="kpi-value kpi-blue" id="kRank">—</div><div class="kpi-sub">winner composite</div></div>
+          <div class="kpi"><div class="kpi-label">Trending Up</div><div class="kpi-value kpi-green" id="kUp">—</div><div class="kpi-sub">SKUs</div></div>
+          <div class="kpi"><div class="kpi-label">Trending Down</div><div class="kpi-value kpi-red" id="kDn">—</div><div class="kpi-sub">SKUs</div></div>
+          <div class="kpi"><div class="kpi-label">Horizon Total</div><div class="kpi-value kpi-blue" id="kTotal">—</div><div class="kpi-sub" id="kTotalSub">all SKU forecast</div></div>
+        </div>
+        <div class="tbl-wrap" id="mainTblWrap">
+          <table id="mainTbl">
+            <thead><tr id="mainTblHead"></tr></thead>
+            <tbody id="mainTblBody"></tbody>
+          </table>
+          <div class="empty hidden" id="mainEmpty">
+            <div class="empty-icon">📊</div>
+            <div class="empty-txt">Run forecast to see results</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="p-chart">
+        <div class="detail-layout">
+          <div class="detail-left">
+            <div class="pane-header">
+              <span class="pane-title" id="chartPaneTitle">Select a SKU</span>
+              <span class="pane-badge" id="chartModelBadge"></span>
+              <div class="pane-actions">
+                <button class="pane-btn active" onclick="setChartType('line')" id="ctLine">Line</button>
+                <button class="pane-btn" onclick="setChartType('bar')" id="ctBar">Bar</button>
+                <button class="pane-btn" onclick="setChartType('both')" id="ctBoth">Combined</button>
+              </div>
+            </div>
+            <div class="chart-area" id="chartArea">
+              <div class="empty">
+                <div class="empty-icon">📈</div>
+                <div class="empty-txt">Select a SKU from the navigator or toolbar to view chart</div>
+              </div>
+            </div>
+            <div class="chart-legend" id="chartLegend"></div>
+          </div>
+          <div class="detail-right">
+            <div class="detail-section">
+              <div class="detail-section-hdr">SKU Information</div>
+              <div class="detail-kv" id="skuInfoKV">
+                <div class="kv-row"><span class="kv-key">No SKU selected</span></div>
+              </div>
+            </div>
+            <div class="detail-section">
+              <div class="detail-section-hdr">Accuracy Metrics</div>
+              <div class="detail-kv" id="skuMetricsKV"></div>
+            </div>
+            <div class="detail-section-hdr" style="position:relative">
+              Model Competition
+              <span style="position:absolute;right:10px;font-size:9px;color:var(--tx3)" id="valPeriodLabel"></span>
+            </div>
+            <div class="model-scores" id="modelScoresList"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="p-validation">
+        <div class="pane-header">
+          <span class="pane-title">Model Competition Results — All SKUs</span>
+          <span class="pane-badge" id="valBadge"></span>
+          <div class="pane-actions" style="margin-left:auto">
+            <input style="height:20px;padding:0 6px;border-radius:3px;background:var(--bg2);border:1px solid var(--border);color:var(--tx);font-size:10px;outline:none;width:180px" id="valSearch" type="text" placeholder="Search SKU…" oninput="filterValTbl()"/>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table id="valTbl">
+            <thead><tr id="valTblHead"></tr></thead>
+            <tbody id="valTblBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel" id="p-settings">
+        <div class="settings-wrap">
+          <div class="settings-grid">
+            <div class="settings-card">
+              <div class="settings-card-hdr">📐 Models to Evaluate</div>
+              <div class="settings-body">
+                <div class="model-checklist" id="modelChecklist"></div>
+              </div>
+            </div>
+            <div class="settings-card">
+              <div class="settings-card-hdr">📘 Model Reference</div>
+              <div class="settings-body">
+                <div style="font-size:11px;color:var(--tx2);line-height:1.8;">
+                  <b style="color:var(--tx)">Validation Logic:</b><br>
+                  • Uses <span style="color:var(--orange)">rolling forward walk-forward validation</span><br>
+                  • Start train = first (N − V) periods<br>
+                  • Forecast 1 step ahead, compare to next actual<br>
+                  • Append actual to train, move forward, repeat V times<br><br>
+
+                  <b style="color:var(--tx)">Included Models:</b><br>
+                  • Naive, Seasonal Naive, SMA, Drift<br>
+                  • ADIDA, IMAPA, Croston/SBA/TSB<br>
+                  • ETS Auto, Holt-Winters, SES, DES<br>
+                  • ARIMA, SARIMA, Theta<br>
+                  • Prophet-style, XGBoost-style<br><br>
+
+                  <b style="color:var(--tx)">Winner Ranking:</b><br>
+                  • Uses <span style="color:var(--accent2)">composite rank score</span><br>
+                  • Score combines MAPE, NMAE, MAE%, sMAPE, bias<br>
+                  • Intermittent demand adds sparse-demand penalties<br><br>
+
+                  <b style="color:var(--tx)">Outlier Handling:</b><br>
+                  • Rolling median + MAD clipping on training only<br><br>
+
+                  <b style="color:var(--tx)">Input Conversion:</b><br>
+                  • PostingDate → Year, Month, Week(1-4)<br>
+                  • Week bucket = days 1-7, 8-14, 15-21, 22-end<br><br>
+
+                  <b style="color:var(--tx)">Notes:</b><br>
+                  • Prophet-style = pure JS changepoint + Fourier seasonality<br>
+                  • XGBoost-style = pure JS gradient-boosted tree stumps
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="statusbar">
+  <span class="status-dot sd-idle" id="sDot"></span>
+  <span class="status-msg" id="sMsg">Ready — load a file to begin</span>
+  <div class="status-right">
+    <div class="prog-bar-wrap" id="progWrap" style="display:none"><div class="prog-bar" id="progBar" style="width:0%"></div></div>
+    <span id="sRight"></span>
+  </div>
+</div>
+<script>
+'use strict';
+
+const MODELS = [
+  {id:'naive',    name:'Naive',                short:'Naive',    type:'Baseline',     on:true,  color:'#95a5a6'},
+  {id:'snaive',   name:'Seasonal Naive',       short:'SNaive',   type:'Baseline',     on:true,  color:'#7f8c8d'},
+  {id:'sma',      name:'Simple Moving Avg',    short:'SMA',      type:'MovingAvg',    on:true,  color:'#16a085'},
+  {id:'drift',    name:'Drift',                short:'Drift',    type:'Baseline',     on:true,  color:'#f39c12'},
+  {id:'adida',    name:'ADIDA',                short:'ADIDA',    type:'Intermittent', on:true,  color:'#9b59b6'},
+  {id:'imapa',    name:'IMAPA',                short:'IMAPA',    type:'Intermittent', on:true,  color:'#8e44ad'},
+  {id:'ets',      name:'ETS Auto',             short:'ETS',      type:'ExpSmooth',    on:true,  color:'#2e86de'},
+  {id:'hw',       name:'Holt-Winters',         short:'HW',       type:'ExpSmooth',    on:true,  color:'#54a0ff'},
+  {id:'des',      name:'Double Exp. Smooth',   short:'DES',      type:'ExpSmooth',    on:true,  color:'#2980b9'},
+  {id:'ses',      name:'Single Exp. Smooth',   short:'SES',      type:'ExpSmooth',    on:true,  color:'#a55eea'},
+  {id:'lr',       name:'Linear Regression',    short:'LR',       type:'Statistical',  on:true,  color:'#fd9644'},
+  {id:'wma',      name:'Weighted Moving Avg',  short:'WMA',      type:'MovingAvg',    on:true,  color:'#2bcbba'},
+  {id:'seasonal', name:'Seasonal Decomp.',     short:'Seasonal', type:'Decomp',       on:true,  color:'#26de81'},
+  {id:'arima',    name:'ARIMA Auto',           short:'ARIMA',    type:'TimeSeries',   on:true,  color:'#fc5c65'},
+  {id:'sarima',   name:'SARIMA Auto',          short:'SARIMA',   type:'TimeSeries',   on:true,  color:'#fed330'},
+  {id:'croston',  name:'Croston',              short:'Croston',  type:'Intermittent', on:true,  color:'#ff6b81'},
+  {id:'theta',    name:'Theta Method',         short:'Theta',    type:'Statistical',  on:true,  color:'#eccc68'},
+  {id:'prophet',  name:'Prophet',              short:'Prophet',  type:'TrendSeason',  on:true,  color:'#1abc9c'},
+  {id:'xgb',      name:'XGBoost',              short:'XGB',      type:'BoostedTrees', on:true,  color:'#d35400'},
+  {id:'tfjs',     name:'Neural Network',        short:'NN',       type:'Browser ML',   on:true,  color:'#6c5ce7'}
+];
+
+let skuMap = {};
+let results = [];
+let selectedCode = null;
+let horizonUnit = 'week';
+let chartType = 'line';
+let latestLoadedRows = 0;
+let tfReadyChecked = false;
+
+buildModelChecklist();
+buildValidationHead();
+updateDRLabel();
+
+document.getElementById('lbN').addEventListener('change', updateDRLabel);
+document.getElementById('hzN').addEventListener('change', updateDRLabel);
+document.getElementById('valN').addEventListener('change', updateDRLabel);
+
+function buildModelChecklist(){
+  const el = document.getElementById('modelChecklist');
+  el.innerHTML = MODELS.map(m => `
+    <div class="mc-item ${m.on?'checked':''}" id="mci_${m.id}" onclick="toggleM('${m.id}')">
+      <div class="mc-cb">${m.on?'✓':''}</div>
+      <div style="flex:1">
+        <div class="mc-name">${m.name}</div>
+        <div class="mc-type">${m.type}</div>
+      </div>
+      <div style="width:10px;height:10px;border-radius:50%;background:${m.color};flex-shrink:0"></div>
+    </div>
+  `).join('');
+}
+
+function buildValidationHead(){
+  const base = [
+    '<th style="min-width:100px">ITEM CODE</th>',
+    '<th style="min-width:200px">DESCRIPTION</th>',
+    '<th>WINNER</th>',
+    '<th class="td-num">RANK SCORE</th>',
+    '<th class="td-num">WIN MAPE%</th>',
+    '<th class="td-num">WIN NMAE%</th>'
+  ];
+  const modelCols = MODELS.map(m => `<th class="td-num">${esc(m.short)} MAPE</th>`);
+  document.getElementById('valTblHead').innerHTML = base.concat(modelCols).join('');
+}
+
+function toggleM(id){
+  const m = MODELS.find(x => x.id === id);
+  if(!m) return;
+  m.on = !m.on;
+  const el = document.getElementById('mci_'+id);
+  el.classList.toggle('checked', m.on);
+  el.querySelector('.mc-cb').textContent = m.on ? '✓' : '';
+}
+
+function setHUnit(u){
+  horizonUnit = u;
+  document.getElementById('tbWk').classList.toggle('active', u === 'week');
+  document.getElementById('tbMo').classList.toggle('active', u === 'month');
+  document.getElementById('valUnitLbl').textContent = u === 'week' ? 'weeks' : 'months';
+  const hzEl = document.getElementById('hzN');
+  hzEl.max = u === 'week' ? 52 : 24;
+  if(u === 'week' && parseInt(hzEl.value,10) > 52) hzEl.value = 8;
+  if(u === 'month' && parseInt(hzEl.value,10) > 24) hzEl.value = 3;
+  updateDRLabel();
+}
+
+function updateDRLabel(){
+  const lb = parseInt(document.getElementById('lbN').value,10) || 12;
+  const now = new Date();
+  const endY = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const endM = now.getMonth() === 0 ? 12 : now.getMonth();
+  let startY = endY, startM = endM - lb + 1;
+  while(startM <= 0){ startM += 12; startY--; }
+  const mn = m => ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1];
+  document.getElementById('drLabel').textContent = `${mn(startM)} ${startY} → ${mn(endM)} ${endY}  (excl. current month)`;
+}
+
+function setChartType(t){
+  chartType = t;
+  ['line','bar','both'].forEach(x => {
+    const b = document.getElementById('ct' + x.charAt(0).toUpperCase() + x.slice(1));
+    if(b) b.classList.toggle('active', x === t);
+  });
+  if(selectedCode) renderChart(selectedCode);
+}
+
+const dropZone = document.getElementById('dropZone');
+const fileIn = document.getElementById('fileIn');
+const uploadBox = document.getElementById('uploadBox');
+
+fileIn.addEventListener('change', e => { if(e.target.files[0]) processFile(e.target.files[0]); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); uploadBox.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => uploadBox.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadBox.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if(f){
+    fileIn.files = e.dataTransfer.files;
+    processFile(f);
+  }
+});
+
+function setStatus(msg, state='idle', pct=null){
+  document.getElementById('sMsg').textContent = msg;
+  const d = document.getElementById('sDot');
+  d.className = 'status-dot sd-' + state;
+  const pw = document.getElementById('progWrap');
+  if(pct !== null){
+    pw.style.display = 'block';
+    document.getElementById('progBar').style.width = pct + '%';
+  } else if(state === 'idle' || state === 'ok'){
+    pw.style.display = 'none';
+  }
+}
+
+function normalizeHeader(s){
+  return String(s || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function findHeader(keys, candidates){
+  const nk = keys.map(k => ({raw:k, norm:normalizeHeader(k)}));
+  for(const c of candidates){
+    const cn = normalizeHeader(c);
+    const exact = nk.find(x => x.norm === cn);
+    if(exact) return exact.raw;
+    const partial = nk.find(x => x.norm.includes(cn) || cn.includes(x.norm));
+    if(partial) return partial.raw;
+  }
+  return '';
+}
+
+function parseQty(v){
+  if(v == null || v === '') return 0;
+  if(typeof v === 'number') return isFinite(v) ? v : 0;
+  const s = String(v).replace(/,/g,'').trim();
+  const n = parseFloat(s);
+  return isFinite(n) ? n : 0;
+}
+
+function parsePostingDate(v){
+  if(v == null || v === '') return null;
+  if(v instanceof Date && !isNaN(v)) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+  if(typeof v === 'number' && isFinite(v)){
+    const dc = XLSX.SSF.parse_date_code(v);
+    if(dc) return new Date(dc.y, dc.m - 1, dc.d);
+  }
+  const s = String(v).trim();
+  if(!s) return null;
+  const iso = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+  if(iso) return new Date(+iso[1], +iso[2]-1, +iso[3]);
+  const dmy = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+  if(dmy){
+    let y = +dmy[3];
+    if(y < 100) y += (y < 50 ? 2000 : 1900);
+    return new Date(y, +dmy[2]-1, +dmy[1]);
+  }
+  const parsed = new Date(s);
+  if(!isNaN(parsed)) return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+  return null;
+}
+
+function weekInMonth4(dt){
+  const day = dt.getDate();
+  if(day <= 7) return 1;
+  if(day <= 14) return 2;
+  if(day <= 21) return 3;
+  return 4;
+}
+
+function processFile(file){
+  setStatus('Reading file…','run',5);
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, {defval:null});
+      if(!json.length) throw new Error('File is empty');
+
+      setStatus('Detecting columns…','run',25);
+      const keys = Object.keys(json[0]);
+      const descKey = findHeader(keys, ['description','desc','productname','product','itemname','itemdescription','dscription']);
+      const codeKey = findHeader(keys, ['itemcode','item code','sku','code','item']);
+      const postKey = findHeader(keys, ['postingdate','posting date','documentdate','date','invoice date']);
+      const yearKey = findHeader(keys, ['year','yr']);
+      const monthKey = findHeader(keys, ['month','mon','mth']);
+      const weekKey = findHeader(keys, ['week','wk']);
+      const qtyKey = findHeader(keys, ['sumofquantity','sum of quantity','quantity','qty','sales','demand','sumqty','sum_qty']);
+
+      if(!codeKey || !qtyKey || !(postKey || (yearKey && monthKey))){
+        throw new Error('Required columns not detected. Need ItemCode, Sum of Quantity, and PostingDate OR Year/Month.');
+      }
+
+      setStatus('Converting input to forecast buckets…','run',50);
+      skuMap = {};
+      let accepted = 0;
+      let skipped = 0;
+      const bucketMap = {};
+
+      json.forEach(row => {
+        const code = String(row[codeKey] ?? '').trim();
+        if(!code){ skipped++; return; }
+        const desc = String((descKey ? row[descKey] : code) ?? code).trim() || code;
+        const qty = parseQty(row[qtyKey]);
+
+        let year, month, week;
+        if(postKey){
+          const dt = parsePostingDate(row[postKey]);
+          if(!dt){ skipped++; return; }
+          year = dt.getFullYear();
+          month = dt.getMonth() + 1;
+          week = weekInMonth4(dt);
+        } else {
+          year = parseInt(row[yearKey], 10);
+          month = parseInt(row[monthKey], 10);
+          week = weekKey ? parseInt(row[weekKey], 10) : 1;
+          if(!isFinite(year) || !isFinite(month)){ skipped++; return; }
+          if(!isFinite(week) || week < 1) week = 1;
+          if(week > 4) week = 4;
+        }
+
+        const bk = [code, year, month, week].join('|');
+        if(!bucketMap[bk]) bucketMap[bk] = {code, desc, year, month, week, qty:0};
+        bucketMap[bk].qty += qty;
+        accepted++;
+      });
+
+      Object.values(bucketMap).forEach(rec => {
+        if(!skuMap[rec.code]) skuMap[rec.code] = {desc:rec.desc, recs:[]};
+        skuMap[rec.code].recs.push({year:rec.year, month:rec.month, week:rec.week, qty:rec.qty});
+      });
+
+      Object.keys(skuMap).forEach(code => {
+        skuMap[code].recs.sort((a,b) => ((a.year*100 + a.month)*10 + a.week) - ((b.year*100 + b.month)*10 + b.week));
+      });
+
+      latestLoadedRows = accepted;
+      const nSku = Object.keys(skuMap).length;
+      setStatus(`✓ Loaded ${accepted} usable rows · ${nSku} SKUs · Week(1-4) buckets built`,'ok');
+      document.getElementById('fileInfo').textContent = `${file.name} | ${accepted} usable rows | ${nSku} SKUs | ${skipped} skipped`;
+      document.getElementById('runBtn').disabled = false;
+      document.getElementById('expBtn').disabled = true;
+      document.getElementById('uploadOverlay').style.display = 'none';
+      renderSKUList(Object.keys(skuMap));
+      results = [];
+      clearAfterNewLoad();
+    } catch(err){
+      setStatus('Error: ' + err.message, 'err');
+      console.error(err);
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function clearAfterNewLoad(){
+  document.getElementById('mainTblHead').innerHTML = '';
+  document.getElementById('mainTblBody').innerHTML = '';
+  document.getElementById('valTblBody').innerHTML = '';
+  document.getElementById('chartSkuSel').innerHTML = '<option value="">— Select SKU —</option>';
+  document.getElementById('kSku').textContent = '—';
+  document.getElementById('kMape').textContent = '—';
+  document.getElementById('kNmae').textContent = '—';
+  document.getElementById('kRank').textContent = '—';
+  document.getElementById('kUp').textContent = '—';
+  document.getElementById('kDn').textContent = '—';
+  document.getElementById('kTotal').textContent = '—';
+}
+
+function encKey(s){ return encodeURIComponent(String(s)); }
+function decKey(s){ return decodeURIComponent(String(s)); }
+
+function renderSKUList(codes){
+  const el = document.getElementById('skuList');
+  if(!codes.length){
+    el.innerHTML = '<div class="empty" style="padding:30px 0"><div class="empty-icon">📦</div><div class="empty-txt">No SKUs found</div></div>';
+    document.getElementById('skuCount').textContent = '0 items';
+    return;
+  }
+  el.innerHTML = codes.map(code => {
+    const r = results.find(x => x.code === code);
+    const trend = r?.trend || '';
+    const badge = trend === 'up' ? '<span class="sku-badge badge-up">↑ UP</span>' :
+                  trend === 'down' ? '<span class="sku-badge badge-dn">↓ DN</span>' :
+                  trend === 'flat' ? '<span class="sku-badge badge-fl">→ FL</span>' : '';
+    const id = 'si_' + encKey(code);
+    return `<div class="sku-item ${selectedCode===code?'active':''}" id="${id}" onclick="selectSKUByKey('${encKey(code)}')">
+      <div class="sku-code">${esc(code)}</div>
+      <div class="sku-desc">${esc(skuMap[code].desc)}</div>
+      ${badge}
+    </div>`;
+  }).join('');
+  document.getElementById('skuCount').textContent = `${codes.length} items`;
+}
+
+function filterSKUList(){
+  const q = document.getElementById('skuSearch').value.toLowerCase();
+  const codes = Object.keys(skuMap).filter(c => !q || c.toLowerCase().includes(q) || String(skuMap[c].desc).toLowerCase().includes(q));
+  renderSKUList(codes);
+}
+
+function selectSKUByKey(k){ selectSKU(decKey(k)); }
+
+function selectSKU(code){
+  selectedCode = code;
+  document.querySelectorAll('.sku-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('si_' + encKey(code));
+  if(el) el.classList.add('active');
+  document.getElementById('chartSkuSel').value = code;
+  if(document.getElementById('p-chart').classList.contains('on')) renderChart(code);
+}
+
+function onChartSkuChange(){
+  const v = document.getElementById('chartSkuSel').value;
+  if(v) selectSKU(v);
+}
+
+function getCutoff(){
+  const months = parseInt(document.getElementById('lbN').value,10) || 12;
+  const now = new Date();
+  const endY = now.getMonth()===0 ? now.getFullYear()-1 : now.getFullYear();
+  const endM = now.getMonth()===0 ? 12 : now.getMonth();
+  let startY = endY, startM = endM - months + 1;
+  while(startM <= 0){ startM += 12; startY--; }
+  return {startYear:startY,startMonth:startM,endYear:endY,endMonth:endM};
+}
+
+function inRange(year, month, r){
+  const ym = year*100 + month;
+  return ym >= r.startYear*100 + r.startMonth && ym <= r.endYear*100 + r.endMonth;
+}
+
+function buildSeries(code){
+  const cutoff = getCutoff();
+  const recs = skuMap[code].recs.filter(r => inRange(r.year, r.month, cutoff));
+  if(horizonUnit === 'week'){
+    const map = {};
+    recs.forEach(r => {
+      const k = `${r.year}-${String(r.month).padStart(2,'0')}-${r.week}`;
+      map[k] = (map[k] || 0) + r.qty;
+    });
+    return Object.entries(map).sort((a,b) => a[0].localeCompare(b[0])).map(([label,value]) => ({label, value}));
+  }
+  const map = {};
+  recs.forEach(r => {
+    const k = `${r.year}-${String(r.month).padStart(2,'0')}`;
+    map[k] = (map[k] || 0) + r.qty;
+  });
+  return Object.entries(map).sort((a,b) => a[0].localeCompare(b[0])).map(([label,value]) => ({label, value}));
+}
+
+/* ---------- helpers ---------- */
+const mean = a => a.length ? a.reduce((s,v)=>s+v,0)/a.length : 0;
+const sum = a => a.reduce((s,v)=>s+v,0);
+const clip = v => Math.max(0, isFinite(v) ? v : 0);
+
+function std(arr, m=null){
+  if(!arr.length) return 0;
+  const mm = m == null ? mean(arr) : m;
+  return Math.sqrt(mean(arr.map(v => Math.pow(v-mm,2))));
+}
+
+function calcMAPE(actual, pred){
+  const pairs = actual.map((a,i)=>[a,pred[i]]).filter(([a,p]) => a > 0 && p != null && isFinite(p));
+  if(!pairs.length) return null;
+  return pairs.reduce((s,[a,f]) => s + Math.abs(a-f)/a, 0) / pairs.length * 100;
+}
+function calcNMAE(actual, pred){
+  const pairs = actual.map((a,i)=>[a,pred[i]]).filter(([,p]) => p != null && isFinite(p));
+  if(!pairs.length) return null;
+  const num = pairs.reduce((s,[a,f]) => s + Math.abs(a-f), 0);
+  const den = pairs.reduce((s,[a]) => s + Math.abs(a), 0);
+  return den > 0 ? num / den * 100 : null;
+}
+function calcMAE(actual, pred){
+  const pairs = actual.map((a,i)=>[a,pred[i]]).filter(([,p]) => p != null && isFinite(p));
+  if(!pairs.length) return null;
+  return pairs.reduce((s,[a,f]) => s + Math.abs(a-f), 0) / pairs.length;
+}
+function calcRMSE(actual, pred){
+  const pairs = actual.map((a,i)=>[a,pred[i]]).filter(([,p]) => p != null && isFinite(p));
+  if(!pairs.length) return null;
+  return Math.sqrt(pairs.reduce((s,[a,f]) => s + Math.pow(a-f,2), 0) / pairs.length);
+}
+function calcBiasPct(actual, pred){
+  const pairs = actual.map((a,i)=>[a,pred[i]]).filter(([,p]) => p != null && isFinite(p));
+  if(!pairs.length) return null;
+  const den = pairs.reduce((s,[a]) => s + Math.abs(a), 0);
+  if(den <= 0) return null;
+  const bias = pairs.reduce((s,[a,f]) => s + (f-a), 0);
+  return bias / den * 100;
+}
+function calcSMAPE(actual, pred){
+  const pairs = actual.map((a,i)=>[a,pred[i]]).filter(([,p]) => p != null && isFinite(p));
+  if(!pairs.length) return null;
+  let tot = 0, n = 0;
+  pairs.forEach(([a,f]) => {
+    const den = (Math.abs(a) + Math.abs(f)) / 2;
+    if(den > 0){
+      tot += Math.abs(a-f) / den;
+      n++;
+    }
+  });
+  return n ? tot / n * 100 : null;
+}
+function calcZeroHitRate(actual, pred, threshold=0.5){
+  let z = 0, hit = 0;
+  actual.forEach((a,i) => {
+    const p = pred[i];
+    if(a === 0 && p != null && isFinite(p)){
+      z++;
+      if(Math.abs(p) <= threshold) hit++;
+    }
+  });
+  return z ? hit / z : null;
+}
+function calcPositiveHitRate(actual, pred, threshold=0.5){
+  let pCnt = 0, hit = 0;
+  actual.forEach((a,i) => {
+    const p = pred[i];
+    if(a > 0 && p != null && isFinite(p)){
+      pCnt++;
+      if(p > threshold) hit++;
+    }
+  });
+  return pCnt ? hit / pCnt : null;
+}
+function fittedMAE(actual, fitted, startAt=0){
+  let n = 0, err = 0;
+  for(let i=startAt;i<actual.length;i++){
+    const f = fitted[i];
+    if(f != null && isFinite(f)){
+      n++;
+      err += Math.abs(actual[i] - f);
+    }
+  }
+  return n ? err / n : Infinity;
+}
+function linReg(x, y){
+  const mx = mean(x), my = mean(y);
+  const den = x.reduce((s,xi)=>s+(xi-mx)**2,0);
+  const num = x.reduce((s,xi,i)=>s+(xi-mx)*(y[i]-my),0);
+  const slope = den ? num / den : 0;
+  const intercept = my - slope*mx;
+  return {slope, intercept};
+}
+function autocorr(series, lag){
+  const m = mean(series), n = series.length;
+  let num = 0, den = 0;
+  for(let i=0;i<n;i++) den += (series[i]-m)**2;
+  for(let i=0;i<n-lag;i++) num += (series[i]-m)*(series[i+lag]-m);
+  return den ? num/den : 0;
+}
+function solveLinear(A,b){
+  const n = A.length;
+  const M = A.map((r,i)=>[...r,b[i]]);
+  for(let c=0;c<n;c++){
+    let mx = c;
+    for(let r=c+1;r<n;r++) if(Math.abs(M[r][c]) > Math.abs(M[mx][c])) mx = r;
+    [M[c], M[mx]] = [M[mx], M[c]];
+    if(Math.abs(M[c][c]) < 1e-12) continue;
+    for(let r=0;r<n;r++){
+      if(r === c) continue;
+      const f = M[r][c] / M[c][c];
+      for(let k=c;k<=n;k++) M[r][k] -= f * M[c][k];
+    }
+  }
+  return M.map((r,i)=>Math.abs(M[i][i]) > 1e-12 ? r[n]/M[i][i] : 0);
+}
+function yuleWalker(series, p){
+  if(series.length < p+2) return Array(p).fill(0);
+  const R = Array.from({length:p+1}, (_,lag)=>autocorr(series, lag));
+  const A = Array.from({length:p}, (_,i)=>Array.from({length:p}, (_,j)=>R[Math.abs(i-j)]));
+  const b = R.slice(1, p+1);
+  return solveLinear(A, b);
+}
+function diff1(arr){
+  const out = [];
+  for(let i=1;i<arr.length;i++) out.push(arr[i]-arr[i-1]);
+  return out;
+}
+function chooseBest(candidates, scorer){
+  let best = null;
+  let bestScore = Infinity;
+  candidates.forEach(c => {
+    const res = scorer(c);
+    if(res && isFinite(res.score) && res.score < bestScore){
+      bestScore = res.score;
+      best = res;
+    }
+  });
+  return best;
+}
+function sleep(ms=0){
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+async function uiYield(){
+  if(typeof tf !== 'undefined' && tf.nextFrame){
+    try { await tf.nextFrame(); return; } catch(e){}
+  }
+  await sleep(0);
+}
+
+/* ---------- matrix / robust ---------- */
+function median(arr){
+  if(!arr.length) return 0;
+  const s = [...arr].sort((a,b)=>a-b);
+  const m = Math.floor(s.length/2);
+  return s.length % 2 ? s[m] : (s[m-1]+s[m])/2;
+}
+function mad(arr, med=null){
+  if(!arr.length) return 0;
+  const m = med == null ? median(arr) : med;
+  return median(arr.map(v => Math.abs(v-m)));
+}
+function quantile(arr, q){
+  if(!arr.length) return 0;
+  const s = [...arr].sort((a,b)=>a-b);
+  if(s.length === 1) return s[0];
+  const pos = (s.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  if(s[base+1] !== undefined) return s[base] + rest * (s[base+1] - s[base]);
+  return s[base];
+}
+function olsBeta(X, y, ridge=1e-6){
+  if(!X.length) return [];
+  const p = X[0].length;
+  const XtX = Array.from({length:p}, ()=>Array(p).fill(0));
+  const Xty = Array(p).fill(0);
+  for(let i=0;i<X.length;i++){
+    for(let a=0;a<p;a++){
+      Xty[a] += X[i][a] * y[i];
+      for(let b=0;b<p;b++) XtX[a][b] += X[i][a] * X[i][b];
+    }
+  }
+  for(let j=0;j<p;j++) XtX[j][j] += ridge;
+  return solveLinear(XtX, Xty);
+}
+function dot(a,b){
+  let s = 0;
+  for(let i=0;i<a.length;i++) s += a[i] * b[i];
+  return s;
+}
+
+/* ---------- pattern / outliers ---------- */
+function analyzeDemandPattern(series){
+  const n = series.length;
+  const nonZeroIdx = [];
+  for(let i=0;i<n;i++) if(series[i] > 0) nonZeroIdx.push(i);
+  const zeroRate = n ? series.filter(v => v === 0).length / n : 0;
+  const nonZero = series.filter(v => v > 0);
+  let adi = Infinity;
+  if(nonZeroIdx.length){
+    const intervals = [];
+    let prev = -1;
+    nonZeroIdx.forEach(i => {
+      intervals.push(i - prev);
+      prev = i;
+    });
+    adi = mean(intervals);
+  }
+  const nzMean = mean(nonZero);
+  const nzVar = nonZero.length > 1 ? mean(nonZero.map(v => Math.pow(v - nzMean, 2))) : 0;
+  const cv2 = nzMean > 0 ? nzVar / Math.pow(nzMean, 2) : Infinity;
+  const intermittent = zeroRate >= 0.35 || adi > 1.32;
+  const lumpy = intermittent && cv2 > 0.49;
+  const sparse = zeroRate >= 0.55 || adi >= 1.8;
+  return {zeroRate, adi, cv2, intermittent, lumpy, sparse, nonZeroCount:nonZero.length};
+}
+
+function cleanTrainSeries(train, seasonPeriod=4){
+  if(train.length < 6){
+    return {cleaned:[...train], flags:Array(train.length).fill(false), count:0};
+  }
+  const cleaned = [...train];
+  const flags = Array(train.length).fill(false);
+  const globalQ1 = quantile(train, 0.25);
+  const globalQ3 = quantile(train, 0.75);
+  const globalIQR = globalQ3 - globalQ1;
+  const globalLo = Math.max(0, globalQ1 - 2.5 * globalIQR);
+  const globalHi = globalQ3 + 2.5 * globalIQR;
+  const lookback = Math.max(6, Math.min(train.length, seasonPeriod * 3));
+
+  for(let i=0;i<train.length;i++){
+    const start = Math.max(0, i - lookback);
+    const win = train.slice(start, i + 1);
+    const med = median(win);
+    const mdev = mad(win, med) || 0;
+    const robustSigma = mdev * 1.4826;
+    const localLo = Math.max(0, med - 3.5 * robustSigma);
+    const localHi = med + 3.5 * robustSigma;
+    const lo = Math.max(0, isFinite(localLo) ? localLo : globalLo);
+    const hi = Math.min(
+      isFinite(localHi) ? localHi : globalHi,
+      isFinite(globalHi) ? globalHi : Number.POSITIVE_INFINITY
+    );
+
+    const v = train[i];
+    const clippedVal = Math.min(Math.max(v, lo), hi);
+    if(Math.abs(clippedVal - v) > 1e-9){
+      cleaned[i] = clippedVal;
+      flags[i] = true;
+    }
+  }
+
+  return {cleaned, flags, count:flags.filter(Boolean).length};
+}
+
+/* ---------- seasonal init ---------- */
+function initAdditiveSeasonals(train, S){
+  const seasons = Math.floor(train.length / S);
+  if(seasons < 2) return Array.from({length:S}, (_,i)=>train[i] - mean(train.slice(0,S)));
+  const seasonAvgs = [];
+  for(let s=0;s<seasons;s++) seasonAvgs.push(mean(train.slice(s*S, s*S+S)));
+  const seasonals = Array(S).fill(0);
+  for(let i=0;i<S;i++){
+    const vals = [];
+    for(let s=0;s<seasons;s++) vals.push(train[s*S+i] - seasonAvgs[s]);
+    seasonals[i] = mean(vals);
+  }
+  const adj = mean(seasonals);
+  return seasonals.map(v => v - adj);
+}
+function initMultiplicativeSeasonals(train, S){
+  const seasons = Math.floor(train.length / S);
+  if(seasons < 2) return Array(S).fill(1);
+  const seasonAvgs = [];
+  for(let s=0;s<seasons;s++) seasonAvgs.push(mean(train.slice(s*S, s*S+S)) || 1);
+  const seasonals = Array(S).fill(1);
+  for(let i=0;i<S;i++){
+    const vals = [];
+    for(let s=0;s<seasons;s++) vals.push(train[s*S+i] / (seasonAvgs[s] || 1));
+    seasonals[i] = mean(vals) || 1;
+  }
+  const adj = mean(seasonals) || 1;
+  return seasonals.map(v => v / adj);
+}
+
+/* ---------- baseline models ---------- */
+function mNaive(train, h){
+  const fitted = Array(train.length).fill(null);
+  for(let t=1;t<train.length;t++) fitted[t] = clip(train[t-1]);
+  const last = clip(train[train.length-1] ?? 0);
+  return {fitted, forecast:Array(h).fill(last), meta:{}};
+}
+
+function mSNaive(train, h, S=4){
+  if(train.length < S+1) return mNaive(train, h);
+  const fitted = Array(train.length).fill(null);
+  for(let t=S;t<train.length;t++) fitted[t] = clip(train[t-S]);
+  const forecast = Array.from({length:h}, (_,i)=>clip(train[train.length-S + (i % S)] ?? train[train.length-1] ?? 0));
+  return {fitted, forecast, meta:{season:S}};
+}
+
+function fitSMA(train, h, win){
+  const fitted = Array(train.length).fill(null);
+  for(let t=win;t<train.length;t++) fitted[t] = clip(mean(train.slice(t-win, t)));
+  const buf = [...train];
+  const forecast = [];
+  for(let i=0;i<h;i++){
+    const f = clip(mean(buf.slice(-win)));
+    forecast.push(f);
+    buf.push(f);
+  }
+  return {fitted, forecast};
+}
+
+function mSMA(train, h){
+  const maxWin = Math.min(10, Math.max(2, train.length-1));
+  const wins = Array.from({length:maxWin-1}, (_,i)=>i+2);
+  const best = chooseBest(wins, w => {
+    const fit = fitSMA(train, h, w);
+    return {...fit, w, score:fittedMAE(train, fit.fitted, w)};
+  }) || fitSMA(train, h, Math.min(3, train.length-1));
+  return {fitted:best.fitted, forecast:best.forecast, meta:{window:best.w}};
+}
+
+function mDrift(train, h){
+  if(train.length < 2) return mNaive(train, h);
+  const fitted = Array(train.length).fill(null);
+  for(let t=1;t<train.length;t++){
+    const drift = (train[t-1] - train[0]) / Math.max(1, t-1 || 1);
+    fitted[t] = clip(train[t-1] + drift);
+  }
+  const n = train.length;
+  const drift = (train[n-1] - train[0]) / Math.max(1, n-1);
+  const forecast = Array.from({length:h}, (_,i)=>clip(train[n-1] + drift * (i+1)));
+  return {fitted, forecast, meta:{drift}};
+}
+
+/* ---------- intermittent aggregation ---------- */
+function aggregateSeries(train, k){
+  const agg = [];
+  for(let i=0;i<train.length;i+=k) agg.push(sum(train.slice(i, i+k)));
+  return agg;
+}
+function disaggFitted(fittedAgg, n, k){
+  const out = Array(n).fill(null);
+  for(let b=0;b<fittedAgg.length;b++){
+    const f = fittedAgg[b];
+    if(f == null || !isFinite(f)) continue;
+    for(let i=b*k;i<Math.min(n,(b+1)*k);i++) out[i] = clip(f / k);
+  }
+  return out;
+}
+function disaggForecast(fcAgg, h, k){
+  const out = [];
+  fcAgg.forEach(v => {
+    for(let i=0;i<k;i++) if(out.length < h) out.push(clip(v / k));
+  });
+  while(out.length < h) out.push(out.length ? out[out.length-1] : 0);
+  return out;
+}
+function fitAggModel(agg, hAgg){
+  const cands = [
+    {name:'ses', fn:()=>mSES(agg, hAgg)},
+    {name:'naive', fn:()=>mNaive(agg, hAgg)},
+    {name:'sma', fn:()=>mSMA(agg, hAgg)},
+    {name:'des', fn:()=>mDES(agg, hAgg)}
+  ];
+  let best = null, bestScore = Infinity;
+  cands.forEach(c => {
+    const fit = c.fn();
+    const sc = fittedMAE(agg, fit.fitted, 1);
+    if(isFinite(sc) && sc < bestScore){
+      bestScore = sc;
+      best = {...fit, model:c.name};
+    }
+  });
+  return best || mNaive(agg, hAgg);
+}
+function mADIDA(train, h){
+  const pattern = analyzeDemandPattern(train);
+  const baseK = Math.max(2, Math.round(isFinite(pattern.adi) ? pattern.adi : 2));
+  const ks = [...new Set([2, baseK, baseK+1].map(v => Math.max(2, Math.min(8, v))))];
+  const best = chooseBest(ks, k => {
+    if(Math.ceil(train.length / k) < 3) return null;
+    const agg = aggregateSeries(train, k);
+    const hAgg = Math.ceil(h / k);
+    const fitAgg = fitAggModel(agg, hAgg);
+    const fitted = disaggFitted(fitAgg.fitted, train.length, k);
+    const forecast = disaggForecast(fitAgg.forecast, h, k);
+    return {k, fitted, forecast, model:fitAgg.model, score:fittedMAE(train, fitted, k)};
+  });
+  if(!best) return mCroston(train, h);
+  return {fitted:best.fitted, forecast:best.forecast, meta:{k:best.k, aggModel:best.model}};
+}
+function mIMAPA(train, h){
+  const pattern = analyzeDemandPattern(train);
+  let maxK = Math.max(2, Math.min(8, Math.round((isFinite(pattern.adi) ? pattern.adi : 2) * 2)));
+  const ks = [];
+  for(let k=2;k<=maxK;k++) if(Math.ceil(train.length / k) >= 3) ks.push(k);
+  if(!ks.length) return mADIDA(train, h);
+
+  const pieces = ks.map(k => {
+    const agg = aggregateSeries(train, k);
+    const fitAgg = fitAggModel(agg, Math.ceil(h / k));
+    return {
+      k,
+      fitted: disaggFitted(fitAgg.fitted, train.length, k),
+      forecast: disaggForecast(fitAgg.forecast, h, k)
+    };
+  });
+
+  const fitted = Array(train.length).fill(null);
+  for(let i=0;i<train.length;i++){
+    const vals = pieces.map(p => p.fitted[i]).filter(v => v != null && isFinite(v));
+    fitted[i] = vals.length ? mean(vals) : null;
+  }
+  const forecast = Array.from({length:h}, (_,i)=>clip(mean(pieces.map(p => p.forecast[i] ?? 0))));
+  return {fitted, forecast, meta:{ks:ks.join(',')}};
+}
+
+/* ---------- exp smoothing ---------- */
+function fitSES(train, alpha){
+  let level = train[0];
+  const fitted = Array(train.length).fill(null);
+  for(let t=1;t<train.length;t++){
+    fitted[t] = clip(level);
+    level = alpha * train[t] + (1-alpha) * level;
+  }
+  return {fitted, forecastLevel: level};
+}
+function mSES(train, h){
+  const alphas = [0.05,0.10,0.15,0.20,0.30,0.40,0.50,0.70,0.90];
+  const best = chooseBest(alphas, alpha => {
+    const fit = fitSES(train, alpha);
+    return {alpha, ...fit, score: fittedMAE(train, fit.fitted, 1)};
+  }) || {fitted:Array(train.length).fill(null), forecastLevel:mean(train)};
+  return {fitted:best.fitted, forecast:Array(h).fill(clip(best.forecastLevel)), meta:{alpha:best.alpha}};
+}
+
+function fitDES(train, alpha, beta){
+  let level = train[0];
+  let trend = train.length > 1 ? train[1] - train[0] : 0;
+  const fitted = Array(train.length).fill(null);
+  for(let t=1;t<train.length;t++){
+    fitted[t] = clip(level + trend);
+    const prevLevel = level;
+    level = alpha * train[t] + (1-alpha) * (level + trend);
+    trend = beta * (level - prevLevel) + (1-beta) * trend;
+  }
+  return {fitted, level, trend};
+}
+function mDES(train, h){
+  const alphas = [0.10,0.20,0.30,0.40,0.50,0.70,0.90];
+  const betas = [0.05,0.10,0.20,0.30,0.40];
+  const params = [];
+  alphas.forEach(a=>betas.forEach(b=>params.push({a,b})));
+  const best = chooseBest(params, p => {
+    const fit = fitDES(train, p.a, p.b);
+    return {...fit, alpha:p.a, beta:p.b, score:fittedMAE(train, fit.fitted, 1)};
+  }) || {fitted:Array(train.length).fill(null), level:mean(train), trend:0};
+  return {
+    fitted:best.fitted,
+    forecast:Array.from({length:h}, (_,i)=>clip(best.level + (i+1) * best.trend)),
+    meta:{alpha:best.alpha,beta:best.beta}
+  };
+}
+
+function sumGeomPhi(phi, m){
+  if(Math.abs(phi - 1) < 1e-9) return m;
+  return phi * (1 - Math.pow(phi, m)) / (1 - phi);
+}
+function fitDampedDES(train, alpha, beta, phi){
+  let level = train[0];
+  let trend = train.length > 1 ? train[1] - train[0] : 0;
+  const fitted = Array(train.length).fill(null);
+  for(let t=1;t<train.length;t++){
+    fitted[t] = clip(level + phi * trend);
+    const prevLevel = level;
+    level = alpha * train[t] + (1-alpha) * (level + phi * trend);
+    trend = beta * (level - prevLevel) + (1-beta) * phi * trend;
+  }
+  return {fitted, level, trend};
+}
+function mDampedDES(train, h){
+  const params = [];
+  [0.2,0.3,0.5,0.7].forEach(alpha => [0.05,0.1,0.2,0.3].forEach(beta => [0.8,0.9,0.95,0.98].forEach(phi => params.push({alpha,beta,phi}))));
+  const best = chooseBest(params, p => {
+    const fit = fitDampedDES(train, p.alpha, p.beta, p.phi);
+    return {...fit, ...p, score:fittedMAE(train, fit.fitted, 1)};
+  });
+  if(!best) return mDES(train, h);
+  const forecast = Array.from({length:h}, (_,i)=>clip(best.level + best.trend * sumGeomPhi(best.phi, i+1)));
+  return {fitted:best.fitted, forecast, meta:{alpha:best.alpha,beta:best.beta,phi:best.phi}};
+}
+
+function fitHWAdditive(train, alpha, beta, gamma, S){
+  if(train.length < S*2) return null;
+  let level = mean(train.slice(0,S));
+  let trend = (mean(train.slice(S,S*2)) - mean(train.slice(0,S))) / S;
+  const seasonals = initAdditiveSeasonals(train, S).slice();
+  const fitted = Array(train.length).fill(null);
+  for(let t=0;t<train.length;t++){
+    const idx = t % S;
+    const oldSeason = seasonals[idx];
+    if(t >= S) fitted[t] = clip(level + trend + oldSeason);
+    const prevLevel = level;
+    level = alpha * (train[t] - oldSeason) + (1-alpha) * (level + trend);
+    trend = beta * (level - prevLevel) + (1-beta) * trend;
+    seasonals[idx] = gamma * (train[t] - level) + (1-gamma) * oldSeason;
+  }
+  return {fitted, level, trend, seasonals};
+}
+function mHW(train, h, S=4){
+  if(train.length < S*2) return mDES(train, h);
+  const params = [];
+  [0.15,0.25,0.35,0.50,0.70].forEach(a=>[0.05,0.10,0.20,0.30].forEach(b=>[0.10,0.20,0.30,0.40].forEach(g=>params.push({a,b,g}))));
+  const best = chooseBest(params, p => {
+    const fit = fitHWAdditive(train, p.a, p.b, p.g, S);
+    if(!fit) return null;
+    return {...fit, alpha:p.a, beta:p.b, gamma:p.g, score:fittedMAE(train, fit.fitted, S)};
+  });
+  if(!best) return mDES(train, h);
+  const n = train.length;
+  const forecast = Array.from({length:h}, (_,i)=>clip(best.level + (i+1) * best.trend + best.seasonals[(n+i)%S]));
+  return {fitted:best.fitted, forecast, meta:{alpha:best.alpha,beta:best.beta,gamma:best.gamma}};
+}
+
+function fitDampedHWAdditive(train, alpha, beta, gamma, phi, S){
+  if(train.length < S*2) return null;
+  let level = mean(train.slice(0,S));
+  let trend = (mean(train.slice(S,S*2)) - mean(train.slice(0,S))) / S;
+  const seasonals = initAdditiveSeasonals(train, S).slice();
+  const fitted = Array(train.length).fill(null);
+  for(let t=0;t<train.length;t++){
+    const idx = t % S;
+    const oldSeason = seasonals[idx];
+    if(t >= S) fitted[t] = clip(level + phi * trend + oldSeason);
+    const prevLevel = level;
+    level = alpha * (train[t] - oldSeason) + (1-alpha) * (level + phi * trend);
+    trend = beta * (level - prevLevel) + (1-beta) * phi * trend;
+    seasonals[idx] = gamma * (train[t] - level) + (1-gamma) * oldSeason;
+  }
+  return {fitted, level, trend, seasonals};
+}
+function mDampedHW(train, h, S=4){
+  if(train.length < S*2) return mDampedDES(train, h);
+  const params = [];
+  [0.2,0.35,0.5].forEach(a=>[0.05,0.1,0.2].forEach(b=>[0.1,0.2,0.3].forEach(g=>[0.8,0.9,0.95].forEach(phi=>params.push({a,b,g,phi})))));
+  const best = chooseBest(params, p => {
+    const fit = fitDampedHWAdditive(train, p.a,p.b,p.g,p.phi,S);
+    if(!fit) return null;
+    return {...fit, ...p, score:fittedMAE(train, fit.fitted, S)};
+  });
+  if(!best) return mHW(train, h, S);
+  const n = train.length;
+  const forecast = Array.from({length:h}, (_,i)=>clip(best.level + best.trend * sumGeomPhi(best.phi, i+1) + best.seasonals[(n+i)%S]));
+  return {fitted:best.fitted, forecast, meta:{alpha:best.a,beta:best.b,gamma:best.g,phi:best.phi}};
+}
+
+function mETSAuto(train, h, S=4){
+  const candidates = [
+    {name:'SES', fn:()=>mSES(train,h)},
+    {name:'DES', fn:()=>mDES(train,h)},
+    {name:'DampedDES', fn:()=>mDampedDES(train,h)},
+    {name:'HW', fn:()=>mHW(train,h,S)},
+    {name:'DampedHW', fn:()=>mDampedHW(train,h,S)}
+  ];
+  let best = null, bestScore = Infinity;
+  candidates.forEach(c => {
+    const fit = c.fn();
+    const startAt = c.name.includes('HW') ? S : 1;
+    const sc = fittedMAE(train, fit.fitted, startAt);
+    if(isFinite(sc) && sc < bestScore){
+      bestScore = sc;
+      best = {...fit, model:c.name};
+    }
+  });
+  return best ? {fitted:best.fitted, forecast:best.forecast, meta:{selected:best.model}} : mDES(train,h);
+}
+
+/* ---------- other statistical / ts ---------- */
+function mLR(train, h, S=4){
+  const n = train.length;
+  const xs = Array.from({length:n}, (_,i)=>i+1);
+  const {slope, intercept} = linReg(xs, train);
+  let seasonal = Array(S).fill(0);
+  if(n >= S*2){
+    const trend = xs.map(x => intercept + slope*x);
+    const resid = train.map((v,i)=>v - trend[i]);
+    seasonal = Array.from({length:S}, (_,s)=>mean(resid.filter((_,i)=>i%S===s)) || 0);
+    const adj = mean(seasonal);
+    seasonal = seasonal.map(v=>v-adj);
+  }
+  const fitted = xs.map((x,i)=>clip(intercept + slope*x + seasonal[i%S]));
+  const forecast = Array.from({length:h}, (_,i)=>clip(intercept + slope*(n+i+1) + seasonal[(n+i)%S]));
+  return {fitted, forecast, meta:{slope, intercept}};
+}
+
+function buildWeights(win, mode){
+  if(mode === 'exp') return Array.from({length:win}, (_,i)=>Math.pow(1.5, i));
+  return Array.from({length:win}, (_,i)=>i+1);
+}
+function fitWMA(train, h, win, mode){
+  const w = buildWeights(win, mode);
+  const ws = sum(w);
+  const fitted = Array(train.length).fill(null);
+  for(let t=win;t<train.length;t++){
+    const slice = train.slice(t-win, t);
+    fitted[t] = clip(sum(slice.map((v,i)=>v*w[i]))/ws);
+  }
+  const buf = [...train];
+  const forecast = [];
+  for(let i=0;i<h;i++){
+    const slice = buf.slice(-win);
+    const f = clip(sum(slice.map((v,j)=>v*w[j]))/ws);
+    forecast.push(f);
+    buf.push(f);
+  }
+  return {fitted, forecast};
+}
+function mWMA(train, h){
+  const params = [];
+  const maxWin = Math.min(8, Math.max(2, train.length-1));
+  for(let w=2;w<=maxWin;w++) ['linear','exp'].forEach(mode=>params.push({w,mode}));
+  const best = chooseBest(params, p => {
+    const fit = fitWMA(train, h, p.w, p.mode);
+    return {...fit, w:p.w, mode:p.mode, score:fittedMAE(train, fit.fitted, p.w)};
+  }) || fitWMA(train, h, 3, 'linear');
+  return {fitted:best.fitted, forecast:best.forecast, meta:{window:best.w, mode:best.mode}};
+}
+
+function fitSeasonalDecomp(train, h, S, mode){
+  if(train.length < S*2) return null;
+  const seasonal = mode === 'mul' ? initMultiplicativeSeasonals(train, S) : initAdditiveSeasonals(train, S);
+  const deseason = train.map((v,i)=>mode === 'mul' ? v / (seasonal[i%S] || 1) : v - seasonal[i%S]);
+  const xs = Array.from({length:train.length}, (_,i)=>i+1);
+  const {slope, intercept} = linReg(xs, deseason);
+  const fitted = xs.map((x,i)=>{
+    const base = intercept + slope*x;
+    return clip(mode === 'mul' ? base * (seasonal[i%S] || 1) : base + seasonal[i%S]);
+  });
+  const forecast = Array.from({length:h}, (_,i)=>{
+    const base = intercept + slope*(train.length+i+1);
+    return clip(mode === 'mul' ? base * (seasonal[(train.length+i)%S] || 1) : base + seasonal[(train.length+i)%S]);
+  });
+  return {fitted, forecast, mode};
+}
+function mSeasonal(train, h, S=4){
+  const add = fitSeasonalDecomp(train, h, S, 'add');
+  const mul = train.every(v=>v>0) ? fitSeasonalDecomp(train, h, S, 'mul') : null;
+  const aScore = add ? fittedMAE(train, add.fitted, S) : Infinity;
+  const mScore = mul ? fittedMAE(train, mul.fitted, S) : Infinity;
+  if(aScore === Infinity && mScore === Infinity) return mDES(train, h);
+  const best = aScore <= mScore ? add : mul;
+  return {fitted:best.fitted, forecast:best.forecast, meta:{mode:best.mode}};
+}
+
+function fitARIMAApprox(train, h, p=2, q=1){
+  if(train.length < p + 4) return null;
+  const diff = diff1(train);
+  if(diff.length < p + 2) return null;
+  const ar = yuleWalker(diff, p);
+  const fittedDiff = Array(diff.length).fill(null);
+  const residuals = [];
+  for(let t=p;t<diff.length;t++){
+    let pred = 0;
+    for(let j=0;j<p;j++) pred += ar[j] * (diff[t-1-j] || 0);
+    if(q > 0 && residuals.length) pred += 0.35 * residuals[residuals.length-1];
+    fittedDiff[t] = pred;
+    residuals.push(diff[t] - pred);
+  }
+  const fitted = Array(train.length).fill(null);
+  for(let i=0;i<diff.length;i++) if(fittedDiff[i] != null) fitted[i+1] = clip(train[i] + fittedDiff[i]);
+  const buf = [...diff];
+  let lastActual = train[train.length-1];
+  let lastResid = residuals.length ? residuals[residuals.length-1] : 0;
+  const forecast = [];
+  for(let m=0;m<h;m++){
+    let pred = 0;
+    for(let j=0;j<p;j++) pred += ar[j] * (buf[buf.length-1-j] || 0);
+    if(q > 0) pred += 0.35 * lastResid;
+    buf.push(pred);
+    lastActual += pred;
+    forecast.push(clip(lastActual));
+    lastResid *= 0.4;
+  }
+  return {fitted, forecast, ar};
+}
+function mARIMA(train, h){
+  const candidates = [{p:1,q:0},{p:1,q:1},{p:2,q:0},{p:2,q:1},{p:3,q:0}];
+  const best = chooseBest(candidates, c => {
+    const fit = fitARIMAApprox(train, h, c.p, c.q);
+    if(!fit) return null;
+    return {...fit, p:c.p, q:c.q, score:fittedMAE(train, fit.fitted, c.p+1)};
+  });
+  if(!best) return mDES(train, h);
+  return {fitted:best.fitted, forecast:best.forecast, meta:{p:best.p,q:best.q}};
+}
+
+function fitSARIMAApprox(train, h, S, p=1, q=1){
+  if(train.length < S*2 + p + 1) return null;
+  const sDiff = [];
+  for(let i=S;i<train.length;i++) sDiff.push(train[i] - train[i-S]);
+  if(sDiff.length < p + 2) return null;
+  const ar = yuleWalker(sDiff, p);
+  const fittedSDiff = Array(sDiff.length).fill(null);
+  const residuals = [];
+  for(let t=p;t<sDiff.length;t++){
+    let pred = 0;
+    for(let j=0;j<p;j++) pred += ar[j] * (sDiff[t-1-j] || 0);
+    if(q > 0 && residuals.length) pred += 0.30 * residuals[residuals.length-1];
+    fittedSDiff[t] = pred;
+    residuals.push(sDiff[t] - pred);
+  }
+  const fitted = Array(train.length).fill(null);
+  for(let i=0;i<sDiff.length;i++) if(fittedSDiff[i] != null) fitted[i+S] = clip(train[i] + fittedSDiff[i]);
+  const buf = [...sDiff];
+  let lastResid = residuals.length ? residuals[residuals.length-1] : 0;
+  const forecast = [];
+  for(let m=0;m<h;m++){
+    let pred = 0;
+    for(let j=0;j<p;j++) pred += ar[j] * (buf[buf.length-1-j] || 0);
+    if(q > 0) pred += 0.30 * lastResid;
+    const seasonalBase = forecast.length >= S ? forecast[forecast.length-S] : train[train.length-S + (m%S)];
+    const out = clip(seasonalBase + pred);
+    forecast.push(out);
+    buf.push(out - seasonalBase);
+    lastResid *= 0.4;
+  }
+  return {fitted, forecast};
+}
+function mSARIMA(train, h, S=4){
+  if(train.length < S*2 + 2) return mARIMA(train, h);
+  const candidates = [{p:1,q:0},{p:1,q:1},{p:2,q:0},{p:2,q:1}];
+  const best = chooseBest(candidates, c => {
+    const fit = fitSARIMAApprox(train, h, S, c.p, c.q);
+    if(!fit) return null;
+    return {...fit, p:c.p, q:c.q, score:fittedMAE(train, fit.fitted, S + c.p)};
+  });
+  if(!best) return mARIMA(train, h);
+  return {fitted:best.fitted, forecast:best.forecast, meta:{p:best.p,q:best.q,S}};
+}
+
+/* ---------- intermittent ---------- */
+function fitCroston(train, h, alpha=0.1, variant='classic'){
+  const positives = train.filter(v=>v>0);
+  const q0 = positives.length ? positives[0] : mean(train);
+  let q = q0 || 0;
+  let p = 1;
+  let interval = 1;
+  const fitted = Array(train.length).fill(null);
+  for(let t=0;t<train.length;t++){
+    let rate = q / Math.max(p, 0.001);
+    if(variant === 'sba') rate *= (1 - alpha/2);
+    fitted[t] = clip(rate);
+    if(train[t] > 0){
+      q = alpha * train[t] + (1-alpha) * q;
+      p = alpha * interval + (1-alpha) * p;
+      interval = 1;
+    } else {
+      interval += 1;
+    }
+  }
+  let rate = q / Math.max(p, 0.001);
+  if(variant === 'sba') rate *= (1 - alpha/2);
+  return {fitted, forecast:Array(h).fill(clip(rate)), meta:{alpha,variant}};
+}
+function fitTSB(train, h, alpha=0.1, beta=0.1){
+  let z = train.find(v => v > 0) || mean(train) || 0;
+  let p = train[0] > 0 ? 1 : 0;
+  const fitted = Array(train.length).fill(null);
+  for(let t=0;t<train.length;t++){
+    fitted[t] = clip(p * z);
+    const occ = train[t] > 0 ? 1 : 0;
+    p = beta * occ + (1-beta) * p;
+    if(occ) z = alpha * train[t] + (1-alpha) * z;
+  }
+  const future = clip(p * z);
+  return {fitted, forecast:Array(h).fill(future), meta:{alpha,beta,variant:'tsb'}};
+}
+function mCroston(train, h){
+  const pattern = analyzeDemandPattern(train);
+  const params = [];
+  [0.05,0.10,0.15,0.20,0.30,0.40].forEach(alpha => {
+    ['classic','sba'].forEach(variant => params.push({kind:'croston', alpha, variant}));
+  });
+  [0.05,0.10,0.15,0.20,0.30].forEach(alpha => {
+    [0.05,0.10,0.20,0.30].forEach(beta => params.push({kind:'tsb', alpha, beta}));
+  });
+
+  const best = chooseBest(params, p => {
+    const fit = p.kind === 'tsb'
+      ? fitTSB(train, h, p.alpha, p.beta)
+      : fitCroston(train, h, p.alpha, p.variant);
+
+    const baseScore = fittedMAE(train, fit.fitted, 1);
+    const zeroHit = calcZeroHitRate(train, fit.fitted);
+    const posHit = calcPositiveHitRate(train, fit.fitted);
+
+    let score = baseScore;
+    if(pattern.sparse){
+      score += (1 - (zeroHit ?? 0.5)) * 2.0;
+      score += (1 - (posHit ?? 0.5)) * 1.0;
+    } else if(pattern.intermittent){
+      score += (1 - (zeroHit ?? 0.5)) * 1.2;
+    }
+
+    if(p.kind === 'tsb' && pattern.sparse) score *= 0.92;
+    if(p.kind !== 'tsb' && pattern.sparse) score *= 1.03;
+    if(p.variant === 'sba' && pattern.intermittent) score *= 0.97;
+
+    return {...fit, ...p, score};
+  });
+
+  if(!best) return fitTSB(train, h, 0.1, 0.1);
+  return {
+    fitted:best.fitted,
+    forecast:best.forecast,
+    meta:{alpha:best.alpha,beta:best.beta,variant:best.variant || best.kind,kind:best.kind || 'croston'}
+  };
+}
+
+/* ---------- theta ---------- */
+function fitTheta(train, h, theta=2, alpha=0.3){
+  const n = train.length;
+  const xs = Array.from({length:n}, (_,i)=>i+1);
+  const {slope, intercept} = linReg(xs, train);
+  const trend = xs.map(x => intercept + slope*x);
+  const thetaLine = train.map((v,i)=>theta*v + (1-theta)*trend[i]);
+  const ses = fitSES(thetaLine, alpha);
+  const fitted = Array.from({length:n}, (_,i)=>clip(0.5 * ((ses.fitted[i] ?? thetaLine[i]) + trend[i])));
+  const forecast = Array.from({length:h}, (_,i)=>clip(0.5 * (ses.forecastLevel + (intercept + slope*(n+i+1)))));
+  return {fitted, forecast};
+}
+function mTheta(train, h){
+  const params = [];
+  [1.5,2,3].forEach(theta => [0.10,0.20,0.30,0.50,0.70].forEach(alpha => params.push({theta,alpha})));
+  const best = chooseBest(params, p => {
+    const fit = fitTheta(train, h, p.theta, p.alpha);
+    return {...fit, theta:p.theta, alpha:p.alpha, score:fittedMAE(train, fit.fitted, 1)};
+  }) || fitTheta(train, h, 2, 0.3);
+  return {fitted:best.fitted, forecast:best.forecast, meta:{theta:best.theta, alpha:best.alpha}};
+}
+
+/* ---------- prophet-style ---------- */
+function buildProphetRow(t, cps, S, order){
+  const row = [1, t];
+  cps.forEach(cp => row.push(Math.max(0, t - cp)));
+  if(S && S >= 2){
+    for(let k=1;k<=order;k++){
+      row.push(Math.sin(2 * Math.PI * k * t / S));
+      row.push(Math.cos(2 * Math.PI * k * t / S));
+    }
+  }
+  return row;
+}
+function fitProphetStyle(train, h, S, cps, order){
+  const n = train.length;
+  const X = [];
+  const y = [];
+  for(let t=1;t<=n;t++){
+    X.push(buildProphetRow(t, cps, S, order));
+    y.push(train[t-1]);
+  }
+  const beta = olsBeta(X, y, 1e-5);
+  const fitted = X.map(r => clip(dot(r,beta)));
+  const forecast = Array.from({length:h}, (_,i) => clip(dot(buildProphetRow(n+i+1, cps, S, order), beta)));
+  return {fitted, forecast, beta};
+}
+function mProphet(train, h, S=4){
+  const n = train.length;
+  const cpSets = [[]];
+  if(n >= 8) cpSets.push([Math.floor(n * 0.55)]);
+  if(n >= 12) cpSets.push([Math.floor(n * 0.35), Math.floor(n * 0.7)]);
+  const orders = S >= 4 ? [1,2] : [1];
+
+  let best = null, bestScore = Infinity;
+  cpSets.forEach(cps => {
+    orders.forEach(order => {
+      const fit = fitProphetStyle(train, h, S, cps, order);
+      const sc = fittedMAE(train, fit.fitted, 1);
+      if(isFinite(sc) && sc < bestScore){
+        bestScore = sc;
+        best = {...fit, cps, order};
+      }
+    });
+  });
+
+  return best
+    ? {fitted:best.fitted, forecast:best.forecast, meta:{changepoints:best.cps.join(','), order:best.order}}
+    : mLR(train, h, S);
+}
+
+/* ---------- xgboost-style ---------- */
+function buildFeatureRowFromBuffer(buf, idx, S){
+  const n = buf.length;
+  const lag1 = n >= 1 ? buf[n-1] : 0;
+  const lag2 = n >= 2 ? buf[n-2] : lag1;
+  const lag3 = n >= 3 ? buf[n-3] : lag2;
+  const lag4 = n >= 4 ? buf[n-4] : lag3;
+  const lagS = n >= S ? buf[n-S] : lag4;
+  const ma3 = mean(buf.slice(-Math.min(3, n)));
+  const maS = mean(buf.slice(-Math.min(S, n)));
+  const zeroRateR = buf.slice(-Math.min(S, n)).filter(v => v === 0).length / Math.max(1, Math.min(S, n));
+  const pos = S > 0 ? ((idx-1) % S) + 1 : 1;
+  const s1 = S > 1 ? Math.sin(2 * Math.PI * pos / S) : 0;
+  const c1 = S > 1 ? Math.cos(2 * Math.PI * pos / S) : 0;
+  return [lag1, lag2, lag3, lag4, lagS, ma3, maS, idx, pos, s1, c1, zeroRateR];
+}
+function buildBestStump(X, residuals){
+  if(!X.length) return null;
+  const p = X[0].length;
+  let best = null, bestSSE = Infinity;
+
+  for(let j=0;j<p;j++){
+    const vals = X.map(r => r[j]).filter(v => isFinite(v)).sort((a,b)=>a-b);
+    if(vals.length < 2) continue;
+
+    let thresholds = [];
+    if(vals.length <= 20){
+      for(let i=1;i<vals.length;i++){
+        const thr = (vals[i-1] + vals[i]) / 2;
+        if(isFinite(thr)) thresholds.push(thr);
+      }
+    } else {
+      for(let q=1;q<=10;q++){
+        thresholds.push(quantile(vals, q/11));
+      }
+    }
+    thresholds = [...new Set(thresholds.filter(v => isFinite(v)))];
+
+    thresholds.forEach(thr => {
+      let lsum=0, lcnt=0, rsum=0, rcnt=0;
+      for(let i=0;i<X.length;i++){
+        if(X[i][j] <= thr){ lsum += residuals[i]; lcnt++; }
+        else { rsum += residuals[i]; rcnt++; }
+      }
+      if(!lcnt || !rcnt) return;
+      const lv = lsum / lcnt;
+      const rv = rsum / rcnt;
+      let sse = 0;
+      for(let i=0;i<X.length;i++){
+        const pred = X[i][j] <= thr ? lv : rv;
+        const e = residuals[i] - pred;
+        sse += e * e;
+      }
+      if(sse < bestSSE){
+        bestSSE = sse;
+        best = {j, thr, lv, rv};
+      }
+    });
+  }
+
+  return best;
+}
+function fitGBStumps(X, y, rounds=24, lr=0.12){
+  if(!X.length) return null;
+  const base = mean(y);
+  const pred = Array(y.length).fill(base);
+  const trees = [];
+
+  for(let m=0;m<rounds;m++){
+    const residuals = y.map((v,i)=>v-pred[i]);
+    const stump = buildBestStump(X, residuals);
+    if(!stump) break;
+
+    for(let i=0;i<X.length;i++){
+      pred[i] += lr * (X[i][stump.j] <= stump.thr ? stump.lv : stump.rv);
+    }
+    trees.push(stump);
+
+    const maeNow = mean(y.map((v,i)=>Math.abs(v-pred[i])));
+    if(maeNow < 1e-8) break;
+  }
+
+  return {base, trees, lr};
+}
+function predGB(model, row){
+  let out = model.base;
+  model.trees.forEach(t => { out += model.lr * (row[t.j] <= t.thr ? t.lv : t.rv); });
+  return clip(out);
+}
+function fitXGBStyle(train, h, S=4){
+  const startLag = Math.max(4, S);
+  if(train.length <= startLag + 1) return null;
+
+  const X = [], y = [];
+  for(let t=startLag;t<train.length;t++){
+    X.push(buildFeatureRowFromBuffer(train.slice(0,t), t+1, S));
+    y.push(train[t]);
+  }
+
+  const cands = [
+    {rounds:12, lr:0.08},
+    {rounds:20, lr:0.10},
+    {rounds:28, lr:0.12}
+  ];
+
+  let best = null, bestScore = Infinity;
+
+  cands.forEach(c => {
+    const model = fitGBStumps(X, y, c.rounds, c.lr);
+    if(!model) return;
+    const pred = X.map(r => predGB(model, r));
+    const sc = mean(y.map((v,i)=>Math.abs(v-pred[i])));
+    if(sc < bestScore){
+      bestScore = sc;
+      best = {model, rounds:c.rounds, lr:c.lr};
+    }
+  });
+
+  if(!best) return null;
+
+  const fitted = Array(train.length).fill(null);
+  for(let t=startLag;t<train.length;t++){
+    fitted[t] = predGB(best.model, buildFeatureRowFromBuffer(train.slice(0,t), t+1, S));
+  }
+
+  const buf = [...train];
+  const forecast = [];
+  for(let i=0;i<h;i++){
+    const row = buildFeatureRowFromBuffer(buf, buf.length+1, S);
+    const f = predGB(best.model, row);
+    forecast.push(f);
+    buf.push(f);
+  }
+
+  return {fitted, forecast, meta:{rounds:best.rounds, lr:best.lr, trees:best.model.trees.length}};
+}
+function mXGB(train, h, S=4){
+  const fit = fitXGBStyle(train, h, S);
+  return fit ? fit : mWMA(train, h);
+}
+
+/* ---------- TensorFlow.js real browser ML ---------- */
+async function ensureTFReady(){
+  if(tfReadyChecked) return true;
+  if(typeof tf === 'undefined') throw new Error('TensorFlow.js not loaded. Add the tfjs script in <head>.');
+  await tf.ready();
+  tfReadyChecked = true;
+  return true;
+}
+
+function buildTFRowFromBuffer(buf, nextIndex, S, lag){
+  const n = buf.length;
+  const getLag = k => {
+    const idx = n - k;
+    if(idx >= 0) return buf[idx];
+    return n ? buf[0] : 0;
+  };
+  const lastS = buf.slice(-Math.min(S, n));
+  const last3 = buf.slice(-Math.min(3, n));
+  const mS = mean(lastS);
+  const sdS = std(lastS, mS);
+  const pos = S > 0 ? ((nextIndex - 1) % S) + 1 : 1;
+
+  const row = [];
+  for(let k=1;k<=lag;k++) row.push(getLag(k));
+  row.push(mean(last3));
+  row.push(mS);
+  row.push(sdS);
+  row.push(lastS.filter(v => v === 0).length / Math.max(1, lastS.length));
+  row.push(pos / Math.max(1, S));
+  row.push(Math.sin(2 * Math.PI * pos / Math.max(1, S)));
+  row.push(Math.cos(2 * Math.PI * pos / Math.max(1, S)));
+  row.push(nextIndex);
+  row.push(n ? sum(buf.slice(-Math.min(6, n))) / Math.max(1, Math.min(6, n)) : 0);
+  return row;
+}
+
+function buildTFDataset(train, S, lag){
+  const X = [];
+  const y = [];
+  for(let t=lag;t<train.length;t++){
+    X.push(buildTFRowFromBuffer(train.slice(0,t), t+1, S, lag));
+    y.push(train[t]);
+  }
+  return {X, y, lag};
+}
+
+function makeColStats(X){
+  const cols = X[0].length;
+  const meanArr = [];
+  const stdArr = [];
+  for(let j=0;j<cols;j++){
+    const col = X.map(r => r[j]);
+    const m = mean(col);
+    const s = std(col, m);
+    meanArr.push(m);
+    stdArr.push(s > 1e-8 ? s : 1);
+  }
+  return {mean:meanArr, std:stdArr};
+}
+function scaleRows(X, stats){
+  return X.map(r => r.map((v,j) => (v - stats.mean[j]) / stats.std[j]));
+}
+function scaleRow(row, stats){
+  return row.map((v,j) => (v - stats.mean[j]) / stats.std[j]);
+}
+
+async function mTFJS(train, h, S=4, opts={}){
+  await ensureTFReady();
+
+  const lag = Math.min(
+    Math.max(4, S),
+    Math.max(4, Math.min(8, train.length - 2))
+  );
+
+  if(train.length <= lag + 4){
+    return mWMA(train, h);
+  }
+
+  const ds = buildTFDataset(train, S, lag);
+  if(ds.X.length < 8) return mWMA(train, h);
+
+  const xStats = makeColStats(ds.X);
+  const Xs = scaleRows(ds.X, xStats);
+
+  const yMean = mean(ds.y);
+  const yStdRaw = std(ds.y, yMean);
+  const yStd = yStdRaw > 1e-8 ? yStdRaw : 1;
+  const Ys = ds.y.map(v => (v - yMean) / yStd);
+
+  const xTensor = tf.tensor2d(Xs, [Xs.length, Xs[0].length]);
+  const yTensor = tf.tensor2d(Ys, [Ys.length, 1]);
+
+  const model = tf.sequential();
+  model.add(tf.layers.dense({
+    units: opts.fast ? 16 : 24,
+    activation: 'relu',
+    inputShape: [Xs[0].length]
+  }));
+  model.add(tf.layers.dense({
+    units: opts.fast ? 8 : 12,
+    activation: 'relu'
+  }));
+  model.add(tf.layers.dense({units: 1}));
+
+  model.compile({
+    optimizer: tf.train.adam(opts.fast ? 0.02 : 0.01),
+    loss: 'meanSquaredError'
+  });
+
+  const epochs = opts.fast ? 16 : 34;
+  const batchSize = Math.min(16, Math.max(4, Math.floor(Xs.length / 2)));
+  await model.fit(xTensor, yTensor, {
+    epochs,
+    batchSize,
+    verbose: 0,
+    shuffle: false,
+    validationSplit: Xs.length >= 14 ? 0.15 : 0
+  });
+
+  const fitTensor = model.predict(xTensor);
+  const fitNorm = Array.from(await fitTensor.data());
+  const fitted = Array(train.length).fill(null);
+  for(let i=0;i<fitNorm.length;i++){
+    fitted[i + lag] = clip(fitNorm[i] * yStd + yMean);
+  }
+
+  const buf = [...train];
+  const forecast = [];
+  for(let step=0; step<h; step++){
+    const row = buildTFRowFromBuffer(buf, buf.length + 1, S, lag);
+    const scaled = scaleRow(row, xStats);
+    const rowTensor = tf.tensor2d([scaled], [1, scaled.length]);
+    const predTensor = model.predict(rowTensor);
+    const predNorm = (await predTensor.data())[0];
+    const val = clip(predNorm * yStd + yMean);
+    forecast.push(val);
+    buf.push(val);
+    rowTensor.dispose();
+    predTensor.dispose();
+  }
+
+  fitTensor.dispose();
+  xTensor.dispose();
+  yTensor.dispose();
+  model.dispose();
+  await uiYield();
+
+  return {
+    fitted,
+    forecast,
+    meta:{
+      library:'TensorFlow.js',
+      lag,
+      epochs,
+      features: Xs[0].length
+    }
+  };
+}
+
+/* ---------- dispatcher ---------- */
+async function runModel(id, train, h, S=4, opts={}){
+  try{
+    switch(id){
+      case 'naive': return mNaive(train, h);
+      case 'snaive': return mSNaive(train, h, S);
+      case 'sma': return mSMA(train, h);
+      case 'drift': return mDrift(train, h);
+      case 'adida': return mADIDA(train, h);
+      case 'imapa': return mIMAPA(train, h);
+      case 'ets': return mETSAuto(train, h, S);
+      case 'hw': return mHW(train, h, S);
+      case 'des': return mDES(train, h);
+      case 'ses': return mSES(train, h);
+      case 'lr': return mLR(train, h, S);
+      case 'wma': return mWMA(train, h);
+      case 'seasonal': return mSeasonal(train, h, S);
+      case 'arima': return mARIMA(train, h);
+      case 'sarima': return mSARIMA(train, h, S);
+      case 'croston': return mCroston(train, h);
+      case 'theta': return mTheta(train, h);
+      case 'prophet': return mProphet(train, h, S);
+      case 'xgb': return mXGB(train, h, S);
+      case 'tfjs': return await mTFJS(train, h, S, opts);
+      default: return mDES(train, h);
+    }
+  } catch(err){
+    console.error('Model error', id, err);
+    return {fitted:Array(train.length).fill(null), forecast:Array(h).fill(0), meta:{error:true, message:err.message}};
+  }
+}
+
+/* ---------- ranking ---------- */
+function compositeRankScore(metrics, modelId, pattern){
+  const mape = metrics.mape ?? 999;
+  const nmae = metrics.nmae ?? 999;
+  const smape = metrics.smape ?? Math.min(999, mape);
+  const maeScaled = metrics.maePct ?? Math.min(999, nmae);
+  const biasAbs = Math.abs(metrics.biasPct ?? 0);
+  const zeroMiss = metrics.zeroHitRate == null ? 50 : (1 - metrics.zeroHitRate) * 100;
+  const posMiss = metrics.posHitRate == null ? 50 : (1 - metrics.posHitRate) * 100;
+
+  let score =
+      0.34 * mape +
+      0.28 * nmae +
+      0.12 * smape +
+      0.14 * maeScaled +
+      0.12 * biasAbs;
+
+  if(pattern.intermittent){
+    score =
+      0.24 * mape +
+      0.28 * nmae +
+      0.08 * smape +
+      0.10 * maeScaled +
+      0.08 * biasAbs +
+      0.14 * zeroMiss +
+      0.08 * posMiss;
+
+    if(['croston','adida','imapa'].includes(modelId)) score *= pattern.sparse ? 0.88 : 0.93;
+    if(modelId === 'snaive' && !pattern.sparse) score *= 0.98;
+    if(['hw','des','ses','ets'].includes(modelId) && pattern.sparse) score *= 1.05;
+  } else {
+    if(['naive','snaive'].includes(modelId)) score *= 1.01;
+    if(['ets','prophet','xgb','tfjs'].includes(modelId)) score *= 0.99;
+  }
+
+  return score;
+}
+
+async function rollingForwardValidate(modelId, vals, startTrainN, S){
+  const actual = [];
+  const predictions = [];
+  let lastMeta = {};
+  let outlierTotal = 0;
+
+  for(let t=startTrainN; t<vals.length; t++){
+    const rawTrain = vals.slice(0, t);
+    if(rawTrain.length < 3) continue;
+
+    const cleaned = cleanTrainSeries(rawTrain, S);
+    outlierTotal += cleaned.count;
+
+    const res = await runModel(modelId, cleaned.cleaned, 1, S, {fast:true});
+    const pred = res && res.forecast && res.forecast.length ? clip(res.forecast[0]) : 0;
+
+    predictions.push(pred);
+    actual.push(vals[t]);
+    lastMeta = {
+      ...(res.meta || {}),
+      outlierAdjustedCount: cleaned.count,
+      outlierAdjustedTotal: outlierTotal
+    };
+
+    if(((t - startTrainN + 1) % 2) === 0) await uiYield();
+  }
+
+  const mae = calcMAE(actual, predictions);
+  const denomScale = mean(actual.map(v => Math.abs(v))) || 1;
+  const maePct = denomScale > 0 ? mae / denomScale * 100 : null;
+  const pattern = analyzeDemandPattern(vals);
+
+  const out = {
+    actual,
+    predictions,
+    mape: calcMAPE(actual, predictions),
+    nmae: calcNMAE(actual, predictions),
+    smape: calcSMAPE(actual, predictions),
+    rmse: calcRMSE(actual, predictions),
+    mae,
+    maePct,
+    biasPct: calcBiasPct(actual, predictions),
+    zeroHitRate: calcZeroHitRate(actual, predictions),
+    posHitRate: calcPositiveHitRate(actual, predictions),
+    pattern,
+    meta: lastMeta
+  };
+
+  out.rankScore = compositeRankScore(out, modelId, pattern);
+  return out;
+}
+
+/* ---------- main run ---------- */
+async function runForecast(){
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Running…';
+
+  try{
+    const activeModels = MODELS.filter(m => m.on);
+    if(!activeModels.length){
+      setStatus('No models selected', 'err');
+      btn.disabled = false;
+      btn.textContent = '▶ Run Forecast';
+      return;
+    }
+
+    if(activeModels.some(m => m.id === 'tfjs')){
+      setStatus('Preparing TensorFlow.js…', 'run', 1);
+      await ensureTFReady();
+    }
+
+    const h = parseInt(document.getElementById('hzN').value,10) || 8;
+    const V = parseInt(document.getElementById('valN').value,10) || 4;
+    const S = parseInt(document.getElementById('seasN').value,10) || 4;
+    const codes = Object.keys(skuMap);
+    results = [];
+    setStatus(`Forecasting ${codes.length} SKUs…`, 'run', 2);
+
+    for(let idx=0; idx<codes.length; idx++){
+      const code = codes[idx];
+      setStatus(`Processing SKU ${idx+1}/${codes.length}: ${code}`, 'run', Math.round((idx+1)/codes.length*92));
+
+      const series = buildSeries(code);
+      const vals = series.map(s => s.value);
+      const labels = series.map(s => s.label);
+      const desc = skuMap[code].desc;
+      const N = vals.length;
+      const rawPattern = analyzeDemandPattern(vals);
+
+      if(N < 4){
+        results.push({
+          code, desc, model:'N/A', modelName:'Insufficient Data', series:vals, labels,
+          valActual:[], valPredictions:{}, forecast:Array(h).fill(0), fitted:[],
+          mape:null, nmae:null, rankScore:null, trend:'na', avgVal:0, totalHist:Math.round(sum(vals)),
+          modelScores:{}, winner:null, V:0, trainN:N, details:{}, outlierCount:0, pattern:rawPattern
+        });
+        await uiYield();
+        continue;
+      }
+
+      let vN = Math.min(V, N - 3);
+      if(vN < 1) vN = 1;
+      const trainN = N - vN;
+
+      const modelScores = {};
+      for(const m of activeModels){
+        const score = await rollingForwardValidate(m.id, vals, trainN, S);
+        modelScores[m.id] = {
+          name: m.name,
+          short: m.short,
+          color: m.color,
+          predictions: score.predictions,
+          mape: score.mape,
+          nmae: score.nmae,
+          smape: score.smape,
+          rmse: score.rmse,
+          mae: score.mae,
+          maePct: score.maePct,
+          biasPct: score.biasPct,
+          zeroHitRate: score.zeroHitRate,
+          posHitRate: score.posHitRate,
+          rankScore: score.rankScore,
+          meta: score.meta || {}
+        };
+        await uiYield();
+      }
+
+      let winner = null;
+      let bestRank = Infinity;
+      activeModels.forEach(m => {
+        const s = modelScores[m.id];
+        if(s && s.rankScore != null && s.rankScore < bestRank){
+          bestRank = s.rankScore;
+          winner = m.id;
+        }
+      });
+      if(!winner){
+        let bestMape = Infinity;
+        activeModels.forEach(m => {
+          const s = modelScores[m.id];
+          if(s && s.mape != null && s.mape < bestMape){
+            bestMape = s.mape;
+            winner = m.id;
+          }
+        });
+      }
+      if(!winner) winner = activeModels[0].id;
+
+      const fullClean = cleanTrainSeries(vals, S);
+      const finalRes = await runModel(winner, fullClean.cleaned, h, S, {fast:false});
+
+      const winScore = modelScores[winner] || {};
+      const avgVal = mean(vals);
+      const recent = mean(vals.slice(-Math.min(4, vals.length)));
+      const fcAvg = mean(finalRes.forecast.slice(0, Math.min(4, h)));
+      const trend = fcAvg > recent * 1.05 ? 'up' : fcAvg < recent * 0.95 ? 'down' : 'flat';
+
+      results.push({
+        code,
+        desc,
+        model:winner,
+        modelName: MODELS.find(m => m.id === winner)?.name || winner,
+        series: vals,
+        labels,
+        valActual: vals.slice(trainN),
+        valPredictions: Object.fromEntries(activeModels.map(m => [m.id, modelScores[m.id]?.predictions || []])),
+        forecast: finalRes.forecast,
+        fitted: finalRes.fitted,
+        mape: winScore.mape,
+        nmae: winScore.nmae,
+        rankScore: winScore.rankScore,
+        smape: winScore.smape,
+        rmse: winScore.rmse,
+        mae: winScore.mae,
+        biasPct: winScore.biasPct,
+        zeroHitRate: winScore.zeroHitRate,
+        posHitRate: winScore.posHitRate,
+        trend,
+        avgVal: Math.round(avgVal*10)/10,
+        totalHist: Math.round(sum(vals)*10)/10,
+        modelScores,
+        winner,
+        V: vN,
+        trainN,
+        S,
+        details: finalRes.meta || {},
+        outlierCount: fullClean.count,
+        pattern: rawPattern
+      });
+
+      await uiYield();
+    }
+
+    finalizeForecast(h);
+  } catch(err){
+    console.error(err);
+    setStatus('Error: ' + err.message, 'err');
+  } finally {
+    btn.textContent = '▶ Run Forecast';
+    btn.disabled = false;
+  }
+}
+
+function finalizeForecast(h){
+  setStatus(`✓ Forecast complete — ${results.length} SKUs`, 'ok');
+  document.getElementById('expBtn').disabled = false;
+
+  document.getElementById('kSku').textContent = results.length;
+  const mapes = results.filter(r=>r.mape!=null).map(r=>r.mape);
+  const nmaes = results.filter(r=>r.nmae!=null).map(r=>r.nmae);
+  const ranks = results.filter(r=>r.rankScore!=null).map(r=>r.rankScore);
+  document.getElementById('kMape').textContent = mapes.length ? mean(mapes).toFixed(1)+'%' : '—';
+  document.getElementById('kNmae').textContent = nmaes.length ? mean(nmaes).toFixed(1)+'%' : '—';
+  document.getElementById('kRank').textContent = ranks.length ? mean(ranks).toFixed(1) : '—';
+  document.getElementById('kUp').textContent = results.filter(r=>r.trend==='up').length;
+  document.getElementById('kDn').textContent = results.filter(r=>r.trend==='down').length;
+  const tot = sum(results.map(r=>sum(r.forecast)));
+  document.getElementById('kTotal').textContent = tot>999999 ? `${(tot/1e6).toFixed(1)}M` : tot>999 ? `${(tot/1000).toFixed(1)}K` : Math.round(tot);
+  document.getElementById('kTotalSub').textContent = `${h} ${horizonUnit} forecast total`;
+
+  renderMainTable(h);
+  renderValidationTable();
+  renderSKUList(Object.keys(skuMap));
+
+  const sel = document.getElementById('chartSkuSel');
+  sel.innerHTML = '<option value="">— Select SKU —</option>' + results.map(r => `<option value="${escAttr(r.code)}">${esc(r.code)} — ${esc(r.desc.substring(0,35))}</option>`).join('');
+  if(results.length > 0) selectSKU(results[0].code);
+}
+
+/* ---------- overview table ---------- */
+function renderMainTable(h){
+  const hMax = Math.min(h, 8);
+  const unit = horizonUnit === 'week' ? 'W' : 'M';
+  const cols = [
+    {k:'code',l:'ITEM CODE',w:100},
+    {k:'desc',l:'DESCRIPTION',w:220},
+    {k:'model',l:'WINNER MODEL',w:150},
+    {k:'rank',l:'RANK SCORE',w:85},
+    {k:'avg',l:'AVG/PERIOD',w:90},
+    {k:'hist',l:'HIST TOTAL',w:90},
+    {k:'trend',l:'TREND',w:70},
+    {k:'mape',l:'MAPE%',w:70},
+    {k:'nmae',l:'NMAE%',w:70},
+    {k:'outl',l:'OUTLIERS',w:70},
+    ...Array.from({length:hMax}, (_,i)=>({k:`f${i}`,l:`${unit}${i+1}`,w:70})),
+    {k:'f4t',l:'NEXT 4',w:80},
+    {k:'ftot',l:`TOTAL ${h}${unit}`,w:90}
+  ];
+  const thead = document.getElementById('mainTblHead');
+  thead.innerHTML = cols.map((c,i)=>`<th style="min-width:${c.w}px" onclick="sortMain(${i},'${c.k}')">${c.l}<span class="si">⇅</span></th>`).join('');
+  renderMainRows(results, hMax);
+}
+
+function renderMainRows(rows, hMax){
+  const hMax2 = hMax || Math.min(parseInt(document.getElementById('hzN').value,10) || 8, 8);
+  const tbody = document.getElementById('mainTblBody');
+  tbody.innerHTML = '';
+  rows.forEach(r => {
+    const next4 = sum(r.forecast.slice(0,4));
+    const tot = sum(r.forecast);
+    const trendHtml = r.trend==='up' ? `<span style="color:var(--green)">↑ UP</span>` : r.trend==='down' ? `<span style="color:var(--red)">↓ DN</span>` : r.trend==='flat' ? `<span style="color:var(--tx3)">→ FL</span>` : `<span style="color:var(--tx3)">—</span>`;
+    const fcCells = Array.from({length:hMax2}, (_,i)=>`<td class="td-num">${r.forecast[i]!=null ? r.forecast[i].toFixed(1) : '—'}</td>`).join('');
+    const tr = document.createElement('tr');
+    if(r.code === selectedCode) tr.classList.add('selected');
+    tr.onclick = () => selectSKU(r.code);
+    tr.innerHTML = `
+      <td class="td-code">${esc(r.code)}</td>
+      <td class="td-name">${esc(r.desc.substring(0,40))}${r.desc.length>40?'…':''}</td>
+      <td><span style="font-size:10px;padding:2px 6px;background:rgba(46,134,222,0.15);color:var(--accent2);border-radius:2px;font-family:'Roboto Mono',monospace">${esc(r.modelName)}</span></td>
+      <td class="td-num td-bold">${r.rankScore!=null ? r.rankScore.toFixed(1) : '—'}</td>
+      <td class="td-num">${r.avgVal}</td>
+      <td class="td-num">${r.totalHist}</td>
+      <td>${trendHtml}</td>
+      <td class="td-num">${metricCell(r.mape)}</td>
+      <td class="td-num">${metricCell(r.nmae)}</td>
+      <td class="td-num">${r.outlierCount ?? 0}</td>
+      ${fcCells}
+      <td class="td-num td-bold">${next4.toFixed(1)}</td>
+      <td class="td-num td-bold" style="color:var(--accent2)">${tot.toFixed(1)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function metricCell(v){
+  if(v == null) return `<span style="color:var(--tx3)">—</span>`;
+  const cls = v < 15 ? 'td-good' : v < 30 ? 'td-med' : 'td-bad';
+  return `<span class="${cls}">${v.toFixed(1)}%</span>`;
+}
+
+let mainSortState = {col:-1, dir:1};
+function sortMain(colIdx, key){
+  if(mainSortState.col === colIdx) mainSortState.dir *= -1;
+  else { mainSortState.col = colIdx; mainSortState.dir = 1; }
+
+  document.querySelectorAll('#mainTblHead th').forEach((t,i)=>{
+    t.classList.toggle('sorted', i===colIdx);
+    const si = t.querySelector('.si');
+    if(si) si.textContent = i===colIdx ? (mainSortState.dir===1 ? '▲' : '▼') : '⇅';
+  });
+
+  const sorted = [...results].sort((a,b)=>{
+    let av, bv;
+    if(key==='code'){ av=a.code; bv=b.code; }
+    else if(key==='desc'){ av=a.desc; bv=b.desc; }
+    else if(key==='model'){ av=a.modelName||''; bv=b.modelName||''; }
+    else if(key==='rank'){ av=a.rankScore??999; bv=b.rankScore??999; }
+    else if(key==='avg'){ av=a.avgVal; bv=b.avgVal; }
+    else if(key==='hist'){ av=a.totalHist; bv=b.totalHist; }
+    else if(key==='mape'){ av=a.mape??999; bv=b.mape??999; }
+    else if(key==='nmae'){ av=a.nmae??999; bv=b.nmae??999; }
+    else if(key==='trend'){ av=a.trend; bv=b.trend; }
+    else if(key==='outl'){ av=a.outlierCount??-1; bv=b.outlierCount??-1; }
+    else if(key==='f4t'){ av=sum(a.forecast.slice(0,4)); bv=sum(b.forecast.slice(0,4)); }
+    else if(key==='ftot'){ av=sum(a.forecast); bv=sum(b.forecast); }
+    else if(key.startsWith('f')){
+      const i = parseInt(key.slice(1),10) || 0;
+      av = a.forecast[i] ?? -1;
+      bv = b.forecast[i] ?? -1;
+    } else { av=0; bv=0; }
+    if(typeof av === 'string') return mainSortState.dir * av.localeCompare(bv);
+    return mainSortState.dir * (av - bv);
+  });
+
+  renderMainRows(sorted, Math.min(parseInt(document.getElementById('hzN').value,10) || 8, 8));
+}
+
+/* ---------- validation table ---------- */
+function renderValidationTable(){
+  const ids = MODELS.map(m => m.id);
+  const tbody = document.getElementById('valTblBody');
+  tbody.innerHTML = '';
+  results.forEach(r => {
+    const scores = r.modelScores || {};
+    const cells = ids.map(id => {
+      const s = scores[id];
+      const isW = r.winner === id;
+      if(!s || s.mape == null) return '<td class="td-num c-muted">—</td>';
+      const cls = s.mape < 15 ? 'td-good' : s.mape < 30 ? 'td-med' : 'td-bad';
+      return `<td class="td-num ${cls}" ${isW?'style="font-weight:700;background:rgba(46,134,222,0.1)"':''}>${isW?'★ ':''}${s.mape.toFixed(2)}%</td>`;
+    }).join('');
+    const tr = document.createElement('tr');
+    tr.onclick = ()=>selectSKU(r.code);
+    tr.innerHTML = `
+      <td class="td-code">${esc(r.code)}</td>
+      <td class="td-name">${esc(r.desc.substring(0,35))}</td>
+      <td><span style="font-size:10px;padding:2px 6px;background:rgba(46,134,222,0.15);color:var(--accent2);border-radius:2px;font-family:'Roboto Mono',monospace">${esc(r.modelName || '—')}</span></td>
+      <td class="td-num td-bold">${r.rankScore!=null ? r.rankScore.toFixed(2) : '—'}</td>
+      <td class="td-num">${metricCell(r.mape)}</td>
+      <td class="td-num">${metricCell(r.nmae)}</td>
+      ${cells}
+    `;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('valBadge').textContent = `${results.length} SKUs · Rolling validation=${parseInt(document.getElementById('valN').value,10)} ${horizonUnit}s`;
+}
+
+function filterValTbl(){
+  const q = document.getElementById('valSearch').value.toLowerCase();
+  const filtered = q ? results.filter(r => r.code.toLowerCase().includes(q) || r.desc.toLowerCase().includes(q)) : results;
+  const ids = MODELS.map(m => m.id);
+  const tbody = document.getElementById('valTblBody');
+  tbody.innerHTML = '';
+  filtered.forEach(r => {
+    const scores = r.modelScores || {};
+    const cells = ids.map(id => {
+      const s = scores[id];
+      const isW = r.winner === id;
+      if(!s || s.mape == null) return '<td class="td-num c-muted">—</td>';
+      const cls = s.mape < 15 ? 'td-good' : s.mape < 30 ? 'td-med' : 'td-bad';
+      return `<td class="td-num ${cls}" ${isW?'style="font-weight:700;background:rgba(46,134,222,0.1)"':''}>${isW?'★ ':''}${s.mape.toFixed(2)}%</td>`;
+    }).join('');
+    const tr = document.createElement('tr');
+    tr.onclick = ()=>selectSKU(r.code);
+    tr.innerHTML = `
+      <td class="td-code">${esc(r.code)}</td>
+      <td class="td-name">${esc(r.desc.substring(0,35))}</td>
+      <td><span style="font-size:10px;padding:2px 6px;background:rgba(46,134,222,0.15);color:var(--accent2);border-radius:2px;font-family:'Roboto Mono',monospace">${esc(r.modelName || '—')}</span></td>
+      <td class="td-num td-bold">${r.rankScore!=null ? r.rankScore.toFixed(2) : '—'}</td>
+      <td class="td-num">${metricCell(r.mape)}</td>
+      <td class="td-num">${metricCell(r.nmae)}</td>
+      ${cells}
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------- tabs ---------- */
+function swTab(name){
+  const names = ['overview','chart','validation','settings'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('on', names[i] === name));
+  names.forEach(n => document.getElementById('p-'+n).classList.toggle('on', n===name));
+  if(name === 'chart' && selectedCode) setTimeout(()=>renderChart(selectedCode), 30);
+}
+
+/* ---------- chart ---------- */
+function renderChart(code){
+  if(!code) return;
+  const r = results.find(x => x.code === code);
+  if(!r) return;
+
+  const area = document.getElementById('chartArea');
+  area.innerHTML = '<canvas id="fc"></canvas><div class="chart-tip hidden" id="chartTip"></div>';
+  const canvas = document.getElementById('fc');
+  const tip = document.getElementById('chartTip');
+  const dpr = window.devicePixelRatio || 1;
+  const W = area.clientWidth || 800;
+  const H = area.clientHeight || 280;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = {t:36, r:20, b:48, l:68};
+  const cw = W - pad.l - pad.r;
+  const ch = H - pad.t - pad.b;
+  const histShow = r.series.slice(-Math.min(r.series.length, 32));
+  const histLabels = r.labels.slice(-histShow.length);
+  const N = histShow.length;
+  const vN = Math.min(r.V, N);
+  const trainEnd = Math.max(0, N - vN);
+  const fc = r.forecast;
+  const winnerPred = r.modelScores[r.winner]?.predictions || [];
+  const allVals = [...histShow, ...fc, ...winnerPred].filter(v => v != null && isFinite(v));
+  const maxV = Math.max(...allVals, 1) * 1.18;
+  const minV = 0;
+  const totalPts = Math.max(1, N + fc.length - 1);
+  const toX = i => pad.l + (i / totalPts) * cw;
+  const toY = v => pad.t + ch - ((v-minV)/(maxV-minV || 1)) * ch;
+  const winnerColor = MODELS.find(m => m.id === r.winner)?.color || '#2e86de';
+
+  function drawLine(pts, color, dash=[], width=1.6){
+    const valid = pts.filter(([,y])=>y!=null && isFinite(y));
+    if(valid.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(valid[0][0], valid[0][1]);
+    valid.slice(1).forEach(([x,y]) => ctx.lineTo(x,y));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash(dash);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  function drawPoint(x,y,color,radius=3){
+    if(y == null || !isFinite(y)) return;
+    ctx.beginPath();
+    ctx.arc(x,y,radius,0,Math.PI*2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = '#111';
+    ctx.stroke();
+  }
+
+  function draw(hoverIndex=null, mx=0, my=0){
+    ctx.clearRect(0,0,W,H);
+
+    const gridSteps = 5;
+    for(let g=0;g<=gridSteps;g++){
+      const y = pad.t + (ch/gridSteps) * g;
+      ctx.strokeStyle = 'rgba(54,59,69,0.7)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '10px Roboto Mono, monospace';
+      ctx.textAlign = 'right';
+      const val = maxV * (1-g/gridSteps);
+      ctx.fillText(val > 999 ? `${(val/1000).toFixed(1)}K` : Math.round(val), pad.l-6, y+4);
+    }
+
+    if(trainEnd > 0 && trainEnd < N){
+      const x1 = toX(0), x2 = toX(trainEnd-1);
+      ctx.fillStyle = 'rgba(43,203,186,0.04)';
+      ctx.fillRect(x1, pad.t, x2-x1, ch);
+    }
+    if(vN > 0){
+      const x1 = toX(trainEnd), x2 = toX(N-1);
+      ctx.fillStyle = 'rgba(253,150,68,0.07)';
+      ctx.fillRect(x1, pad.t, Math.max(0,x2-x1), ch);
+      ctx.fillStyle = 'rgba(253,150,68,0.6)';
+      ctx.font = '9px Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('ROLLING VALIDATION', x1 + (x2-x1)/2, pad.t+12);
+    }
+    const fx1 = toX(Math.max(0,N-1));
+    ctx.fillStyle = 'rgba(46,134,222,0.04)';
+    ctx.fillRect(fx1, pad.t, cw - (fx1-pad.l), ch);
+
+    if(trainEnd > 0 && trainEnd < N){
+      const x = toX(trainEnd);
+      ctx.strokeStyle = 'rgba(253,150,68,0.5)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,pad.t+ch); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.strokeStyle = 'rgba(46,134,222,0.5)';
+    ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(toX(Math.max(0,N-1)),pad.t); ctx.lineTo(toX(Math.max(0,N-1)),pad.t+ch); ctx.stroke();
+    ctx.setLineDash([]);
+
+    const trainPts = histShow.slice(0,trainEnd).map((v,i)=>[toX(i),toY(v)]);
+    drawLine(trainPts, '#2bcbba', [], 2.2);
+    const valPts = histShow.slice(Math.max(0,trainEnd-1)).map((v,i)=>[toX(Math.max(0,trainEnd-1)+i),toY(v)]);
+    drawLine(valPts, '#fd9644', [], 2.2);
+
+    const actModels = MODELS.filter(m => m.on && r.modelScores[m.id]?.predictions?.length);
+    actModels.filter(m => m.id !== r.winner).forEach(m => {
+      const pred = r.modelScores[m.id]?.predictions || [];
+      if(!pred.length || trainEnd === 0) return;
+      const pts = [[toX(trainEnd-1), toY(histShow[trainEnd-1])], ...pred.map((v,i)=>[toX(trainEnd+i), toY(v)])];
+      drawLine(pts, m.color, [3,3], 1);
+    });
+    if(winnerPred.length && trainEnd > 0){
+      const pts = [[toX(trainEnd-1), toY(histShow[trainEnd-1])], ...winnerPred.map((v,i)=>[toX(trainEnd+i), toY(v)])];
+      drawLine(pts, winnerColor, [], 2.6);
+    }
+
+    const fcPts = [[toX(Math.max(0,N-1)), toY(histShow[N-1])], ...fc.map((v,i)=>[toX(N+i), toY(v)])];
+    drawLine(fcPts, winnerColor, [5,3], 2.6);
+
+    if(chartType === 'bar' || chartType === 'both'){
+      const bW = Math.max(2, (cw / Math.max(1, N + fc.length)) * 0.5);
+      histShow.forEach((v,i)=>{
+        const x = toX(i)-bW/2, y = toY(v), bh = ch-(y-pad.t);
+        ctx.globalAlpha = 0.25;
+        ctx.fillStyle = i < trainEnd ? '#2bcbba' : '#fd9644';
+        ctx.fillRect(x,y,bW,bh);
+      });
+      if(chartType === 'bar'){
+        fc.forEach((v,i)=>{
+          const x = toX(N+i)-bW/2, y = toY(v), bh = ch-(y-pad.t);
+          ctx.globalAlpha = 0.30;
+          ctx.fillStyle = winnerColor;
+          ctx.fillRect(x,y,bW,bh);
+        });
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    fc.forEach((v,i)=> drawPoint(toX(N+i), toY(v), winnerColor, 3));
+
+    const step = Math.ceil((N + fc.length)/12) || 1;
+    for(let i=0;i<N+fc.length;i+=step){
+      const lbl = i < N ? (histLabels[i] || `P${i+1}`) : `F+${i-N+1}`;
+      ctx.fillStyle = i < N ? '#6b7280' : '#54a0ff';
+      ctx.font = '9px Roboto Mono, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(lbl, toX(i), pad.t+ch+22);
+      ctx.strokeStyle = 'rgba(54,59,69,0.5)';
+      ctx.beginPath(); ctx.moveTo(toX(i),pad.t+ch); ctx.lineTo(toX(i),pad.t+ch+4); ctx.stroke();
+    }
+
+    ctx.fillStyle = '#9aa0b0';
+    ctx.font = '700 11px Roboto, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${r.code} · ${r.desc.substring(0,45)} · Model: ${r.modelName}`, pad.l, pad.t-10);
+
+    if(hoverIndex != null){
+      const x = toX(hoverIndex);
+      ctx.strokeStyle = 'rgba(220,225,236,0.22)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2,2]);
+      ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,pad.t+ch); ctx.stroke();
+      ctx.setLineDash([]);
+
+      const rows = [];
+      let yFocus = null;
+      const label = hoverIndex < N ? (histLabels[hoverIndex] || `P${hoverIndex+1}`) : `F+${hoverIndex-N+1}`;
+
+      if(hoverIndex < N){
+        const actual = histShow[hoverIndex];
+        const actualColor = hoverIndex < trainEnd ? '#2bcbba' : '#fd9644';
+        const ay = toY(actual);
+        drawPoint(x, ay, actualColor, 4);
+        yFocus = ay;
+        rows.push({lbl:'Actual', val:actual, color:actualColor});
+      }
+      if(hoverIndex >= trainEnd && hoverIndex < N){
+        const pi = hoverIndex - trainEnd;
+        const pv = winnerPred[pi];
+        if(pv != null){
+          const py = toY(pv);
+          drawPoint(x, py, winnerColor, 4);
+          if(yFocus == null) yFocus = py;
+          rows.push({lbl:`${r.modelName} Pred`, val:pv, color:winnerColor});
+        }
+      }
+      if(hoverIndex >= N){
+        const fi = hoverIndex - N;
+        const fv = fc[fi];
+        if(fv != null){
+          const fy = toY(fv);
+          drawPoint(x, fy, winnerColor, 4);
+          yFocus = fy;
+          rows.push({lbl:'Forecast', val:fv, color:winnerColor});
+        }
+      }
+
+      const modeLbl = hoverIndex < trainEnd ? 'Training' : hoverIndex < N ? 'Rolling Validation' : 'Future Forecast';
+      tip.innerHTML = `
+        <div class="tt-h">${esc(label)} · ${esc(modeLbl)}</div>
+        ${rows.map(row => `<div class="tt-row"><span class="tt-lbl" style="color:${row.color}">${esc(row.lbl)}</span><span class="tt-val">${Number(row.val).toFixed(2)}</span></div>`).join('')}
+      `;
+      tip.classList.remove('hidden');
+      const left = Math.min(W - 190, Math.max(8, mx + 14));
+      const top = Math.min(H - 110, Math.max(8, (yFocus ?? my) - 12));
+      tip.style.left = left + 'px';
+      tip.style.top = top + 'px';
+    } else {
+      tip.classList.add('hidden');
+    }
+  }
+
+  draw();
+
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const inside = mx >= pad.l && mx <= pad.l + cw && my >= pad.t && my <= pad.t + ch;
+    if(!inside){ draw(); return; }
+    let idx = Math.round(((mx - pad.l) / cw) * totalPts);
+    idx = Math.max(0, Math.min(N + fc.length - 1, idx));
+    draw(idx, mx, my);
+  });
+  canvas.addEventListener('mouseleave', () => draw());
+
+  document.getElementById('chartPaneTitle').textContent = `${r.code} — ${r.desc.substring(0,35)}`;
+  document.getElementById('chartModelBadge').textContent = r.modelName || '';
+  document.getElementById('chartLegend').innerHTML = `
+    <div class="leg-item"><div class="leg-line" style="background:#2bcbba"></div> Training data</div>
+    <div class="leg-item"><div class="leg-line" style="background:#fd9644"></div> Rolling validation actual</div>
+    ${MODELS.filter(m=>m.on && m.id!==r.winner && r.modelScores[m.id]?.predictions?.length).map(m=>`<div class="leg-item"><div class="leg-dash" style="border-color:${m.color}"></div><span style="color:${m.color}">${m.short}</span></div>`).join('')}
+    <div class="leg-item"><div class="leg-line" style="background:${winnerColor}"></div><b style="color:${winnerColor}">${r.modelName} (winner)</b></div>
+    <div class="leg-item" style="margin-left:auto;color:var(--orange)">MAPE: ${r.mape!=null ? r.mape.toFixed(2)+'%' : '—'}</div>
+    <div class="leg-item" style="color:var(--teal)">NMAE: ${r.nmae!=null ? r.nmae.toFixed(2)+'%' : '—'}</div>
+    <div class="leg-item" style="color:var(--accent2)">Rank: ${r.rankScore!=null ? r.rankScore.toFixed(2) : '—'}</div>
+  `;
+
+  document.getElementById('skuInfoKV').innerHTML = `
+    <div class="kv-row"><span class="kv-key">Item Code</span><span class="kv-val" style="color:var(--accent2)">${esc(r.code)}</span></div>
+    <div class="kv-row"><span class="kv-key">Description</span><span class="kv-val" style="font-size:10px;max-width:170px;word-break:break-word">${esc(r.desc)}</span></div>
+    <div class="kv-row"><span class="kv-key">History Periods</span><span class="kv-val">${r.series.length}</span></div>
+    <div class="kv-row"><span class="kv-key">Initial Train</span><span class="kv-val" style="color:var(--teal)">${r.trainN}</span></div>
+    <div class="kv-row"><span class="kv-key">Rolling Steps</span><span class="kv-val" style="color:var(--orange)">${r.V}</span></div>
+    <div class="kv-row"><span class="kv-key">Forecast Periods</span><span class="kv-val" style="color:var(--accent2)">${r.forecast.length}</span></div>
+    <div class="kv-row"><span class="kv-key">Avg Per Period</span><span class="kv-val">${r.avgVal}</span></div>
+    <div class="kv-row"><span class="kv-key">Total Historical</span><span class="kv-val">${r.totalHist}</span></div>
+    <div class="kv-row"><span class="kv-key">Outliers Adjusted</span><span class="kv-val">${r.outlierCount ?? 0}</span></div>
+    <div class="kv-row"><span class="kv-key">Zero Rate</span><span class="kv-val">${((r.pattern?.zeroRate || 0) * 100).toFixed(1)}%</span></div>
+    <div class="kv-row"><span class="kv-key">Pattern</span><span class="kv-val" style="color:${r.pattern?.intermittent?'var(--orange)':'var(--tx2)'}">${r.pattern?.sparse ? 'SPARSE' : r.pattern?.intermittent ? 'INTERMITTENT' : 'REGULAR'}</span></div>
+    <div class="kv-row"><span class="kv-key">Trend</span><span class="kv-val" style="color:${r.trend==='up'?'var(--green)':r.trend==='down'?'var(--red)':'var(--tx3)'}">${String(r.trend).toUpperCase()}</span></div>
+  `;
+
+  document.getElementById('skuMetricsKV').innerHTML = `
+    <div class="kv-row"><span class="kv-key">Winner Model</span><span class="kv-val" style="color:var(--accent2);font-size:10px">${esc(r.modelName)}</span></div>
+    <div class="kv-row"><span class="kv-key">Rank Score</span><span class="kv-val" style="color:var(--accent2)">${r.rankScore!=null ? r.rankScore.toFixed(2) : '—'}</span></div>
+    <div class="kv-row"><span class="kv-key">Rolling MAPE</span><span class="kv-val" style="color:${r.mape<15?'var(--green)':r.mape<30?'var(--orange)':'var(--red)'}">${r.mape!=null ? r.mape.toFixed(2)+'%' : '—'}</span></div>
+    <div class="kv-row"><span class="kv-key">Rolling NMAE</span><span class="kv-val" style="color:var(--teal)">${r.nmae!=null ? r.nmae.toFixed(2)+'%' : '—'}</span></div>
+    <div class="kv-row"><span class="kv-key">Bias %</span><span class="kv-val">${r.biasPct!=null ? r.biasPct.toFixed(2)+'%' : '—'}</span></div>
+    <div class="kv-row"><span class="kv-key">Zero Hit Rate</span><span class="kv-val">${r.zeroHitRate!=null ? (r.zeroHitRate*100).toFixed(1)+'%' : '—'}</span></div>
+    <div class="kv-row"><span class="kv-key">Next 4 Forecast</span><span class="kv-val" style="color:var(--accent2)">${sum(r.forecast.slice(0,4)).toFixed(1)}</span></div>
+    <div class="kv-row"><span class="kv-key">Total Forecast</span><span class="kv-val" style="color:var(--accent2)">${sum(r.forecast).toFixed(1)}</span></div>
+  `;
+
+  document.getElementById('valPeriodLabel').textContent = `${r.V} rolling steps`;
+  const activeM = MODELS.filter(m=>m.on);
+  const scores = r.modelScores || {};
+  const sorted = [...activeM].sort((a,b)=>(scores[a.id]?.rankScore??999) - (scores[b.id]?.rankScore??999));
+  const maxRank = Math.max(...sorted.map(m => scores[m.id]?.rankScore || 0), 1);
+  document.getElementById('modelScoresList').innerHTML = sorted.map(m => {
+    const s = scores[m.id];
+    const isW = m.id === r.winner;
+    const score = s?.rankScore;
+    const barPct = score != null ? Math.min(100, score/maxRank*100) : 0;
+    const mape = s?.mape;
+    const barColor = mape < 15 ? '#26de81' : mape < 30 ? '#fd9644' : '#fc5c65';
+    return `<div class="ms-row ${isW?'winner':''}">
+      <div class="ms-badge" style="background:${m.color}"></div>
+      <div class="ms-name">${m.name}${isW?' <span style="color:var(--yellow)">★</span>':''}</div>
+      <div class="ms-bar-wrap"><div class="ms-bar" style="width:${barPct}%;background:${barColor}"></div></div>
+      <div class="ms-mape" style="color:var(--accent2)">${score!=null ? score.toFixed(1) : '—'}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- export ---------- */
+function exportXL(){
+  const wb = XLSX.utils.book_new();
+  const h = parseInt(document.getElementById('hzN').value,10) || 8;
+  const V = parseInt(document.getElementById('valN').value,10) || 4;
+  const u = horizonUnit === 'week' ? 'Wk' : 'Mo';
+
+  const fcHdrs = Array.from({length:h}, (_,i)=>`${u}${i+1} Forecast`);
+  const s1hdr = ['Item Code','Description','Winner Model','Rank Score','Avg Per Period','Total Historical','Trend','Rolling MAPE%','Rolling NMAE%','Bias %','Zero Hit Rate %','Outliers Adjusted','Initial Train Periods','Rolling Steps',...fcHdrs,'Next 4 Total',`Total ${h} Forecast`];
+  const s1data = [s1hdr, ...results.map(r => [
+    r.code, r.desc, r.modelName || r.model,
+    r.rankScore!=null ? +r.rankScore.toFixed(3) : null,
+    r.avgVal, r.totalHist, r.trend,
+    r.mape!=null ? +r.mape.toFixed(2) : null,
+    r.nmae!=null ? +r.nmae.toFixed(2) : null,
+    r.biasPct!=null ? +r.biasPct.toFixed(2) : null,
+    r.zeroHitRate!=null ? +(r.zeroHitRate*100).toFixed(2) : null,
+    r.outlierCount ?? 0,
+    r.trainN, r.V,
+    ...r.forecast.map(v=>+v.toFixed(1)),
+    +sum(r.forecast.slice(0,4)).toFixed(1),
+    +sum(r.forecast).toFixed(1)
+  ])];
+  const ws1 = XLSX.utils.aoa_to_sheet(s1data);
+  ws1['!cols'] = [12,36,22,12,14,14,8,10,10,10,12,10,16,14,...Array(h+2).fill(12)].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Forecast Summary');
+
+  const ids = MODELS.map(m => m.id);
+  const nameMap = Object.fromEntries(MODELS.map(m => [m.id, m.name]));
+  const s2hdr = ['Item Code','Description','Winner','Win Rank Score','Win MAPE%','Win NMAE%', ...ids.map(id=>nameMap[id]+' Rank'), ...ids.map(id=>nameMap[id]+' MAPE%'), ...ids.map(id=>nameMap[id]+' NMAE%')];
+  const s2data = [s2hdr, ...results.map(r => {
+    const sc = r.modelScores || {};
+    return [
+      r.code, r.desc, r.modelName || r.winner,
+      r.rankScore!=null ? +r.rankScore.toFixed(3) : null,
+      r.mape!=null ? +r.mape.toFixed(2) : null,
+      r.nmae!=null ? +r.nmae.toFixed(2) : null,
+      ...ids.map(id => sc[id]?.rankScore!=null ? +sc[id].rankScore.toFixed(3) : null),
+      ...ids.map(id => sc[id]?.mape!=null ? +sc[id].mape.toFixed(2) : null),
+      ...ids.map(id => sc[id]?.nmae!=null ? +sc[id].nmae.toFixed(2) : null)
+    ];
+  })];
+  const ws2 = XLSX.utils.aoa_to_sheet(s2data);
+  ws2['!cols'] = [12,36,24,14,12,12,...Array(ids.length*3).fill(18)].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, 'Model Competition');
+
+  const s3hdr = ['Item Code','Description','Rolling Step','Actual','Predicted (Winner)','Abs Error','APE%'];
+  const s3data = [s3hdr];
+  results.forEach(r => {
+    const pred = r.modelScores[r.winner]?.predictions || [];
+    r.valActual.forEach((a,i) => {
+      const p = pred[i] ?? null;
+      const ae = p != null ? Math.abs(a-p) : null;
+      const ape = a > 0 && p != null ? Math.abs(a-p)/a*100 : null;
+      s3data.push([r.code, r.desc, i+1, a, p!=null ? +p.toFixed(2) : null, ae!=null ? +ae.toFixed(2) : null, ape!=null ? +ape.toFixed(2) : null]);
+    });
+  });
+  const ws3 = XLSX.utils.aoa_to_sheet(s3data);
+  ws3['!cols'] = [12,36,16,12,16,12,10].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws3, 'Validation Detail');
+
+  const s4hdr = ['Item Code','Description','Period','Period Label','Forecast Qty','Model'];
+  const s4data = [s4hdr];
+  results.forEach(r => {
+    r.forecast.forEach((v,i) => s4data.push([r.code, r.desc, i+1, `${u}${i+1}`, +v.toFixed(1), r.modelName || r.model]));
+  });
+  const ws4 = XLSX.utils.aoa_to_sheet(s4data);
+  ws4['!cols'] = [12,36,10,12,14,24].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws4, 'Forecast Detail');
+
+  const s5hdr = ['Item Code','Description','Index','Period Label','Actual Qty','Type'];
+  const s5data = [s5hdr];
+  results.forEach(r => {
+    r.series.forEach((v,i) => s5data.push([r.code, r.desc, i+1, r.labels[i] || `P${i+1}`, v, i < r.trainN ? 'Training' : 'Rolling Validation']));
+  });
+  const ws5 = XLSX.utils.aoa_to_sheet(s5data);
+  ws5['!cols'] = [12,36,8,14,12,18].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws5, 'Historical Data');
+
+  const s6hdr = ['Item Code','Description','Zero Rate %','ADI','CV^2','Intermittent','Sparse','Outliers Adjusted'];
+  const s6data = [s6hdr, ...results.map(r => [
+    r.code,
+    r.desc,
+    +(100 * (r.pattern?.zeroRate || 0)).toFixed(2),
+    r.pattern?.adi != null && isFinite(r.pattern.adi) ? +r.pattern.adi.toFixed(3) : null,
+    r.pattern?.cv2 != null && isFinite(r.pattern.cv2) ? +r.pattern.cv2.toFixed(3) : null,
+    r.pattern?.intermittent ? 'Yes' : 'No',
+    r.pattern?.sparse ? 'Yes' : 'No',
+    r.outlierCount ?? 0
+  ])];
+  const ws6 = XLSX.utils.aoa_to_sheet(s6data);
+  ws6['!cols'] = [12,36,12,10,10,12,10,14].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws6, 'Pattern & Outliers');
+
+  const now = new Date();
+  const s7 = [
+    ['Forecast Demand — Run Report',''],
+    ['Generated', now.toLocaleString()],
+    ['Input Rows Accepted', latestLoadedRows],
+    [''],
+    ['Settings',''],
+    ['Horizon Unit', horizonUnit],
+    ['Horizon Length', h + ' ' + horizonUnit + 's'],
+    ['History Look-back', document.getElementById('lbN').value + ' months'],
+    ['Rolling Validation Steps', V + ' ' + horizonUnit + 's'],
+    ['Seasonal Period', document.getElementById('seasN').value],
+    ['Active Models', MODELS.filter(m=>m.on).map(m=>m.name).join(', ')],
+    ['Total SKUs', results.length],
+    [''],
+    ['Metric Definition',''],
+    ['MAPE', 'mean(|actual-forecast| / actual) × 100'],
+    ['NMAE', 'sum(|actual-forecast|) / sum(|actual|) × 100'],
+    ['Rank Score', 'Composite lower-is-better score using MAPE + NMAE + bias + sparse-demand logic'],
+    [''],
+    ['Notes',''],
+    ['TensorFlow.js NN', 'Single-file browser ML model'],
+    ['Prophet-style', 'Pure JS changepoint + Fourier seasonality'],
+    ['XGBoost-style', 'Pure JS gradient boosted stumps']
+  ];
+  const ws7 = XLSX.utils.aoa_to_sheet(s7);
+  ws7['!cols'] = [{wch:28},{wch:78}];
+  XLSX.utils.book_append_sheet(wb, ws7, 'Run Info');
+
+  const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `ForecastDemand_TFJS_${ts}.xlsx`);
+}
+
+/* ---------- misc ---------- */
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s){
+  return esc(s).replace(/'/g,'&#39;');
+}
+
+window.addEventListener('resize', () => {
+  if(selectedCode && document.getElementById('p-chart').classList.contains('on')) setTimeout(()=>renderChart(selectedCode), 50);
+});
+</script>
+</body>
+</html>
